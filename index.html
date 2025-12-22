@@ -11,19 +11,140 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-100">
+<body class="bg-slate-100 text-slate-900 min-h-screen">
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-indigo-900 tracking-tight">Weather History Vault</h1>
+            <p class="text-slate-500 mt-2 text-lg" id="date-subtitle">Historical Climate Analysis</p>
+        </header>
+
+        <div class="flex flex-col md:flex-row gap-4 mb-8 justify-center">
+            <input type="text" id="cityInput" placeholder="Enter city (e.g. Athens, London)" 
+                   class="px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none w-full md:w-96 shadow-sm">
+            <button onclick="searchCity()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-lg font-semibold transition-all shadow-md">
+                Compare History
+            </button>
+        </div>
+
+        <div id="app-content" class="opacity-0 transition-opacity duration-500">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Today in <span id="loc-name">...</span></h3>
+                    <p id="today-temp" class="text-5xl font-black text-indigo-600 my-2">--°C</p>
+                    <span id="comparison-tag" class="px-3 py-1 rounded-full text-xs font-bold"></span>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Historical Average</h3>
+                    <p id="avg-temp" class="text-5xl font-black text-slate-700 my-2">--°C</p>
+                    <p class="text-xs text-slate-400 italic">Calculated from 85+ years</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Historical Median</h3>
+                    <p id="median-temp" class="text-5xl font-black text-slate-700 my-2">--°C</p>
+                    <p class="text-xs text-slate-400 italic">Mid-point of all records</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 mb-8">
+                <div class="relative h-[450px]">
+                    <canvas id="historyChart"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-indigo-50 border-l-4 border-indigo-500 p-6 rounded-r-2xl mb-12">
+                <h3 class="text-indigo-900 font-bold">Why 1940?</h3>
+                <p class="text-indigo-800 text-sm mt-2">
+                    This analysis starts in 1940 because it marks the beginning of the ERA5 Reanalysis period, the global gold standard for historical climate data.
+                </p>
+            </div>
+        </div>
+    </div>
 
     <script>
-        // REGISTER SERVICE WORKER FOR GOOGLE PLAY COMPLIANCE
+        // 1. SERVICE WORKER REGISTRATION
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('Service Worker Registered'))
-                    .catch(err => console.log('SW Registration Failed', err));
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW Registered'))
+                    .catch(err => console.log('SW Failed', err));
             });
         }
 
-        // [Insert your searchCity, fetchData, and renderApp functions here]
+        // 2. APP LOGIC
+        let chartInstance = null;
+        const today = new Date();
+        const monthDay = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        document.getElementById('date-subtitle').innerText = `Data for ${today.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })} (1940 - 2025)`;
+
+        async function searchCity() {
+            const city = document.getElementById('cityInput').value;
+            if (!city) return;
+            const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=en&format=json`);
+            const geoData = await geoRes.json();
+            if (geoData.results) {
+                const { latitude, longitude, name, country } = geoData.results[0];
+                document.getElementById('loc-name').innerText = `${name}, ${country}`;
+                fetchData(latitude, longitude);
+            }
+        }
+
+        async function fetchData(lat, lon) {
+            const historyUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=1940-01-01&end_date=2024-12-31&daily=temperature_2m_max&timezone=auto`;
+            const currentUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
+            
+            const [hRes, cRes] = await Promise.all([fetch(historyUrl), fetch(currentUrl)]);
+            const hData = await hRes.json();
+            const cData = await cRes.json();
+
+            const filtered = [];
+            hData.daily.time.forEach((t, i) => {
+                if (t.endsWith(monthDay)) {
+                    filtered.push({ year: t.split('-')[0], temp: hData.daily.temperature_2m_max[i] });
+                }
+            });
+            renderApp(filtered, cData.current_weather.temperature);
+        }
+
+        function renderApp(history, currentTemp) {
+            document.getElementById('app-content').classList.remove('opacity-0');
+            const temps = history.map(h => h.temp).filter(t => t !== null);
+            const avg = temps.reduce((a, b) => a + b, 0) / temps.length;
+            const median = [...temps].sort((a, b) => a - b)[Math.floor(temps.length / 2)];
+
+            document.getElementById('today-temp').innerText = `${currentTemp}°C`;
+            document.getElementById('avg-temp').innerText = `${avg.toFixed(1)}°C`;
+            document.getElementById('median-temp').innerText = `${median.toFixed(1)}°C`;
+
+            const diff = (currentTemp - avg).toFixed(1);
+            const tag = document.getElementById('comparison-tag');
+            tag.innerText = diff > 0 ? `${diff}°C WARMER THAN AVG` : `${Math.abs(diff)}°C COLDER THAN AVG`;
+            tag.className = `px-3 py-1 rounded-full text-xs font-bold ${diff > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
+
+            if (chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(document.getElementById('historyChart'), {
+                type: 'line',
+                data: {
+                    labels: history.map(h => h.year),
+                    datasets: [{
+                        label: 'Max Temp °C',
+                        data: temps,
+                        borderColor: '#4f46e5',
+                        tension: 0.4,
+                        fill: true,
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        window.onload = () => {
+            navigator.geolocation.getCurrentPosition(
+                p => fetchData(p.coords.latitude, p.coords.longitude),
+                () => fetchData(37.98, 23.72)
+            );
+        };
     </script>
 </body>
 </html>
