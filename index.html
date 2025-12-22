@@ -37,7 +37,7 @@
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
                     <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Historical Average</h3>
                     <p id="avg-temp" class="text-5xl font-black text-slate-700 my-2">--°C</p>
-                    <p class="text-xs text-slate-400 italic">Calculated from 85+ years</p>
+                    <p class="text-xs text-slate-400 italic" id="avg-years-label">Calculated from history</p>
                 </div>
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
                     <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Historical Median</h3>
@@ -71,11 +71,16 @@
             });
         }
 
-        // 2. APP LOGIC
+        // 2. DYNAMIC DATE LOGIC
         let chartInstance = null;
         const today = new Date();
+        const currentYear = today.getFullYear();
+        const lastFullYear = currentYear - 1; // Used for historical data fetch
         const monthDay = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        document.getElementById('date-subtitle').innerText = `Data for ${today.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })} (1940 - 2025)`;
+        
+        // Sets title dynamically (e.g., 1940 - 2025)
+        document.getElementById('date-subtitle').innerText = `Data for ${today.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })} (1940 - ${currentYear})`;
+        document.getElementById('avg-years-label').innerText = `Calculated from 1940 to ${lastFullYear}`;
 
         async function searchCity() {
             const city = document.getElementById('cityInput').value;
@@ -90,20 +95,25 @@
         }
 
         async function fetchData(lat, lon) {
-            const historyUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=1940-01-01&end_date=2024-12-31&daily=temperature_2m_max&timezone=auto`;
+            // FIX: Dynamic end date so it works every year
+            const historyUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=1940-01-01&end_date=${lastFullYear}-12-31&daily=temperature_2m_max&timezone=auto`;
             const currentUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
             
-            const [hRes, cRes] = await Promise.all([fetch(historyUrl), fetch(currentUrl)]);
-            const hData = await hRes.json();
-            const cData = await cRes.json();
+            try {
+                const [hRes, cRes] = await Promise.all([fetch(historyUrl), fetch(currentUrl)]);
+                const hData = await hRes.json();
+                const cData = await cRes.json();
 
-            const filtered = [];
-            hData.daily.time.forEach((t, i) => {
-                if (t.endsWith(monthDay)) {
-                    filtered.push({ year: t.split('-')[0], temp: hData.daily.temperature_2m_max[i] });
-                }
-            });
-            renderApp(filtered, cData.current_weather.temperature);
+                const filtered = [];
+                hData.daily.time.forEach((t, i) => {
+                    if (t.endsWith(monthDay)) {
+                        filtered.push({ year: t.split('-')[0], temp: hData.daily.temperature_2m_max[i] });
+                    }
+                });
+                renderApp(filtered, cData.current_weather.temperature);
+            } catch (e) {
+                console.error("Data fetch error:", e);
+            }
         }
 
         function renderApp(history, currentTemp) {
@@ -112,7 +122,7 @@
             const avg = temps.reduce((a, b) => a + b, 0) / temps.length;
             const median = [...temps].sort((a, b) => a - b)[Math.floor(temps.length / 2)];
 
-            document.getElementById('today-temp').innerText = `${currentTemp}°C`;
+            document.getElementById('today-temp').innerText = `${currentTemp.toFixed(1)}°C`;
             document.getElementById('avg-temp').innerText = `${avg.toFixed(1)}°C`;
             document.getElementById('median-temp').innerText = `${median.toFixed(1)}°C`;
 
@@ -127,7 +137,7 @@
                 data: {
                     labels: history.map(h => h.year),
                     datasets: [{
-                        label: 'Max Temp °C',
+                        label: `Temp on ${today.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`,
                         data: temps,
                         borderColor: '#4f46e5',
                         tension: 0.4,
@@ -135,14 +145,23 @@
                         backgroundColor: 'rgba(79, 70, 229, 0.1)'
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `Historical Max Temperatures (1940 - ${lastFullYear})`
+                        }
+                    }
+                }
             });
         }
 
         window.onload = () => {
             navigator.geolocation.getCurrentPosition(
                 p => fetchData(p.coords.latitude, p.coords.longitude),
-                () => fetchData(37.98, 23.72)
+                () => fetchData(37.98, 23.72) // Default Athens
             );
         };
     </script>
