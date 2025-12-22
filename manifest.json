@@ -1,15 +1,17 @@
 {
   "name": "Weather History Vault",
   "short_name": "WeatherVault",
-  "start_url": "index.html",
+  "start_url": "/weatherhistoryvault/index.html",
+  "scope": "/weatherhistoryvault/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#4f46e5",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/1163/1163661.png",
+      "src": "https://raw.githubusercontent.com/chamitro/weatherhistoryvault/main/icon.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
