@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -131,7 +132,7 @@
                 if (geoData.results) {
                     const { latitude, longitude, name, country } = geoData.results[0];
                     document.getElementById('loc-name').innerText = `${name}, ${country}`;
-                    updateProgress(30, `Loading Archive for ${name}...`);
+                    updateProgress(20, `Loading Archive for ${name}...`);
                     fetchData(latitude, longitude);
                 } else {
                     alert("City not found");
@@ -145,19 +146,65 @@
         }
 
         async function fetchData(lat, lon) {
-            updateProgress(50, "Downloading 85 years of records...");
-            const historyUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=1940-01-01&end_date=2024-12-31&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean&timezone=auto`;
-            const currentUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
-
+            const START_YEAR = 1940;
+            const END_YEAR = 2024;
+            const CHUNK_SIZE = 10; // Fetch 10 years at a time
+            
+            updateProgress(30, "Downloading climate records...");
+            
+            const allData = {
+                time: [],
+                temperature_2m_max: [],
+                temperature_2m_min: [],
+                temperature_2m_mean: []
+            };
+            
             try {
-                const [hRes, cRes] = await Promise.all([fetch(historyUrl), fetch(currentUrl)]);
-                updateProgress(80, "Processing Climate Data...");
-                const hData = await hRes.json();
+                // Fetch current weather first
+                const currentUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
+                const cRes = await fetch(currentUrl);
                 const cData = await cRes.json();
-                processData(hData, cData.current_weather.temperature);
+                const currentTemp = cData.current_weather.temperature;
+                
+                // Fetch historical data in chunks
+                const totalYears = END_YEAR - START_YEAR + 1;
+                const numChunks = Math.ceil(totalYears / CHUNK_SIZE);
+                
+                for (let i = 0; i < numChunks; i++) {
+                    const chunkStart = START_YEAR + (i * CHUNK_SIZE);
+                    const chunkEnd = Math.min(chunkStart + CHUNK_SIZE - 1, END_YEAR);
+                    
+                    const progress = 30 + ((i / numChunks) * 50);
+                    updateProgress(Math.round(progress), `Loading ${chunkStart}-${chunkEnd}...`);
+                    
+                    const historyUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${chunkStart}-01-01&end_date=${chunkEnd}-12-31&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean&timezone=auto`;
+                    
+                    const hRes = await fetch(historyUrl);
+                    
+                    if (!hRes.ok) {
+                        throw new Error(`API error: ${hRes.status}`);
+                    }
+                    
+                    const hData = await hRes.json();
+                    
+                    // Merge data
+                    allData.time.push(...hData.daily.time);
+                    allData.temperature_2m_max.push(...hData.daily.temperature_2m_max);
+                    allData.temperature_2m_min.push(...hData.daily.temperature_2m_min);
+                    allData.temperature_2m_mean.push(...hData.daily.temperature_2m_mean);
+                    
+                    // Small delay to avoid rate limiting
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                updateProgress(85, "Processing climate data...");
+                processData({ daily: allData }, currentTemp);
+                
             } catch (e) {
-                alert("Weather server busy. Try again.");
+                console.error('Fetch error:', e);
+                alert("Weather server busy or connection issue. Please try again.");
                 updateProgress(0, "");
+                document.getElementById('progress-container').classList.add('hidden');
             }
         }
 
