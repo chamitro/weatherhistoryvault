@@ -11,7 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-100 text-slate-900 min-h-screen">
+<body class="bg-slate-100 text-slate-900 min-h-screen font-sans">
 
     <div class="max-w-6xl mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
@@ -30,19 +30,37 @@
         <div id="app-content" class="opacity-0 transition-opacity duration-500">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Today in <span id="loc-name">...</span></h3>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Today's Temperature</h3>
                     <p id="today-temp" class="text-5xl font-black text-indigo-600 my-2">--°C</p>
                     <span id="comparison-tag" class="px-3 py-1 rounded-full text-xs font-bold"></span>
+                    <p class="text-[10px] text-slate-400 mt-2 uppercase">Real-time vs historical daily norm</p>
                 </div>
+                
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Historical Average</h3>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Historic Day Average</h3>
                     <p id="avg-temp" class="text-5xl font-black text-slate-700 my-2">--°C</p>
-                    <p class="text-xs text-slate-400 italic" id="avg-years-label">Calculated from history</p>
+                    <p class="text-xs text-slate-400 italic" id="avg-years-label">--</p>
+                    <p class="text-[10px] text-slate-400 mt-1 uppercase">Mean for this specific date</p>
                 </div>
+
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Historical Median</h3>
-                    <p id="median-temp" class="text-5xl font-black text-slate-700 my-2">--°C</p>
-                    <p class="text-xs text-slate-400 italic">Mid-point of all records</p>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Climate Growth Rate</h3>
+                    <p id="growth-rate" class="text-5xl font-black text-orange-500 my-2">--%</p>
+                    <p class="text-xs text-slate-400 italic">Annual Warming/Cooling</p>
+                    <p class="text-[10px] text-slate-400 mt-1 uppercase">Full Year vs Previous Year Avg</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div class="bg-indigo-900 p-6 rounded-2xl text-white shadow-lg">
+                    <h3 class="text-indigo-300 text-xs font-bold uppercase tracking-widest mb-1">Tropical Nights Index</h3>
+                    <p class="text-3xl font-bold" id="tropical-nights">--</p>
+                    <p class="text-[11px] text-indigo-200 mt-1">Extra nights per year where temp stayed >20°C (Recent vs 1940s).</p>
+                </div>
+                <div class="bg-emerald-800 p-6 rounded-2xl text-white shadow-lg">
+                    <h3 class="text-emerald-300 text-xs font-bold uppercase tracking-widest mb-1">Spring Arrival Shift</h3>
+                    <p class="text-3xl font-bold" id="spring-shift">--</p>
+                    <p class="text-[11px] text-emerald-200 mt-1">Days earlier spring onset now compared to the mid-20th century.</p>
                 </div>
             </div>
 
@@ -52,35 +70,17 @@
                 </div>
             </div>
 
-            <div class="bg-indigo-50 border-l-4 border-indigo-500 p-6 rounded-r-2xl mb-12">
-                <h3 class="text-indigo-900 font-bold">Why 1940?</h3>
-                <p class="text-indigo-800 text-sm mt-2">
-                    This analysis starts in 1940 because it marks the beginning of the ERA5 Reanalysis period, the global gold standard for historical climate data.
-                </p>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8">
+                <h3 class="font-bold text-slate-800 mb-4 border-b pb-2 text-center uppercase tracking-wider text-sm">Annual Ranking (Coldest to Warmest)</h3>
+                <div id="rankings-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 text-sm"></div>
             </div>
         </div>
     </div>
 
     <script>
-        // 1. SERVICE WORKER REGISTRATION
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('SW Registered'))
-                    .catch(err => console.log('SW Failed', err));
-            });
-        }
-
-        // 2. DYNAMIC DATE LOGIC
         let chartInstance = null;
         const today = new Date();
-        const currentYear = today.getFullYear();
-        const lastFullYear = currentYear - 1; // Used for historical data fetch
         const monthDay = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        
-        // Sets title dynamically (e.g., 1940 - 2025)
-        document.getElementById('date-subtitle').innerText = `Data for ${today.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })} (1940 - ${currentYear})`;
-        document.getElementById('avg-years-label').innerText = `Calculated from 1940 to ${lastFullYear}`;
 
         async function searchCity() {
             const city = document.getElementById('cityInput').value;
@@ -95,75 +95,89 @@
         }
 
         async function fetchData(lat, lon) {
-            // FIX: Dynamic end date so it works every year
-            const historyUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=1940-01-01&end_date=${lastFullYear}-12-31&daily=temperature_2m_max&timezone=auto`;
+            const historyUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=1940-01-01&end_date=2024-12-31&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean&timezone=auto`;
             const currentUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
-            
-            try {
-                const [hRes, cRes] = await Promise.all([fetch(historyUrl), fetch(currentUrl)]);
-                const hData = await hRes.json();
-                const cData = await cRes.json();
-
-                const filtered = [];
-                hData.daily.time.forEach((t, i) => {
-                    if (t.endsWith(monthDay)) {
-                        filtered.push({ year: t.split('-')[0], temp: hData.daily.temperature_2m_max[i] });
-                    }
-                });
-                renderApp(filtered, cData.current_weather.temperature);
-            } catch (e) {
-                console.error("Data fetch error:", e);
-            }
+            const [hRes, cRes] = await Promise.all([fetch(historyUrl), fetch(currentUrl)]);
+            processData(await hRes.json(), (await cRes.json()).current_weather.temperature);
         }
 
-        function renderApp(history, currentTemp) {
+        function processData(hData, currentTemp) {
             document.getElementById('app-content').classList.remove('opacity-0');
-            const temps = history.map(h => h.temp).filter(t => t !== null);
-            const avg = temps.reduce((a, b) => a + b, 0) / temps.length;
-            const median = [...temps].sort((a, b) => a - b)[Math.floor(temps.length / 2)];
+            const dailyHistory = [];
+            const yearlyData = {};
 
+            hData.daily.time.forEach((t, i) => {
+                const year = t.split('-')[0];
+                const max = hData.daily.temperature_2m_max[i];
+                const min = hData.daily.temperature_2m_min[i];
+                const mean = hData.daily.temperature_2m_mean[i];
+
+                if (!yearlyData[year]) yearlyData[year] = { mean: [], min: [] };
+                yearlyData[year].mean.push(mean);
+                yearlyData[year].min.push(min);
+                if (t.endsWith(monthDay)) dailyHistory.push({ year, temp: max });
+            });
+
+            // 1. TROPICAL NIGHTS
+            const calculateTropical = (yearGroup) => yearGroup.min.filter(m => m >= 20).length;
+            const earlyT = Object.keys(yearlyData).slice(0, 20).map(y => calculateTropical(yearlyData[y]));
+            const recentT = Object.keys(yearlyData).slice(-15).map(y => calculateTropical(yearlyData[y]));
+            const tropDiff = (recentT.reduce((a,b)=>a+b,0)/15) - (earlyT.reduce((a,b)=>a+b,0)/20);
+            document.getElementById('tropical-nights').innerText = `+${Math.max(0, tropDiff).toFixed(1)} Nights`;
+
+            // 2. SPRING SHIFT
+            const findSpring = (yearGroup) => yearGroup.mean.findIndex((val, idx, arr) => val > 15 && arr[idx+1] > 15 && arr[idx+2] > 15);
+            const earlyS = Object.keys(yearlyData).slice(0, 20).map(y => findSpring(yearlyData[y])).filter(d => d > 0);
+            const recentS = Object.keys(yearlyData).slice(-15).map(y => findSpring(yearlyData[y])).filter(d => d > 0);
+            const sShift = (earlyS.reduce((a,b)=>a+b,0)/earlyS.length) - (recentS.reduce((a,b)=>a+b,0)/recentS.length);
+            document.getElementById('spring-shift').innerText = `${Math.abs(sShift).toFixed(1)} Days Earlier`;
+
+            // UI UPDATES
+            const dailyTemps = dailyHistory.map(h => h.temp).filter(t => t !== null);
+            const dailyAvg = dailyTemps.reduce((a, b) => a + b, 0) / dailyTemps.length;
             document.getElementById('today-temp').innerText = `${currentTemp.toFixed(1)}°C`;
-            document.getElementById('avg-temp').innerText = `${avg.toFixed(1)}°C`;
-            document.getElementById('median-temp').innerText = `${median.toFixed(1)}°C`;
+            document.getElementById('avg-temp').innerText = `${dailyAvg.toFixed(1)}°C`;
+            document.getElementById('avg-years-label').innerText = `1940 to 2024`;
 
-            const diff = (currentTemp - avg).toFixed(1);
+            const diff = (currentTemp - dailyAvg).toFixed(1);
             const tag = document.getElementById('comparison-tag');
             tag.innerText = diff > 0 ? `${diff}°C WARMER THAN AVG` : `${Math.abs(diff)}°C COLDER THAN AVG`;
             tag.className = `px-3 py-1 rounded-full text-xs font-bold ${diff > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
 
+            const annualAverages = Object.keys(yearlyData).map(y => ({ year: y, avg: yearlyData[y].mean.reduce((a,b)=>a+b,0)/yearlyData[y].mean.length }));
+            const globalMean = annualAverages.reduce((a,b)=>a+b.avg,0)/annualAverages.length;
+
+            if (annualAverages.length >= 2) {
+                const growth = ((annualAverages[annualAverages.length-1].avg - annualAverages[annualAverages.length-2].avg) / annualAverages[annualAverages.length-2].avg) * 100;
+                document.getElementById('growth-rate').innerText = `${growth > 0 ? '+' : ''}${growth.toFixed(1)}%`;
+            }
+
+            const sorted = [...annualAverages].sort((a,b)=>a.avg - b.avg);
+            const listEl = document.getElementById('rankings-list');
+            listEl.innerHTML = '';
+            sorted.forEach((item, i) => {
+                const isWarmer = item.avg > globalMean;
+                listEl.innerHTML += `<div class="bg-white p-2 rounded-lg border flex flex-col items-center">
+                    <span class="text-[9px] text-slate-400">#${i+1}</span>
+                    <span class="font-bold text-indigo-900">${item.year} <span class="${isWarmer?'text-red-500':'text-blue-500'}">${isWarmer?'↑':'↓'}</span></span>
+                    <span class="text-xs">${item.avg.toFixed(1)}°C</span>
+                </div>`;
+            });
+            renderChart(dailyHistory);
+        }
+
+        function renderChart(history) {
             if (chartInstance) chartInstance.destroy();
             chartInstance = new Chart(document.getElementById('historyChart'), {
                 type: 'line',
                 data: {
                     labels: history.map(h => h.year),
-                    datasets: [{
-                        label: `Temp on ${today.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`,
-                        data: temps,
-                        borderColor: '#4f46e5',
-                        tension: 0.4,
-                        fill: true,
-                        backgroundColor: 'rgba(79, 70, 229, 0.1)'
-                    }]
+                    datasets: [{ label: 'Historical Max Temp', data: history.map(h => h.temp), borderColor: '#4f46e5', tension: 0.4, fill: true, backgroundColor: 'rgba(79, 70, 229, 0.1)' }]
                 },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: `Historical Max Temperatures (1940 - ${lastFullYear})`
-                        }
-                    }
-                }
+                options: { responsive: true, maintainAspectRatio: false }
             });
         }
-
-        window.onload = () => {
-            navigator.geolocation.getCurrentPosition(
-                p => fetchData(p.coords.latitude, p.coords.longitude),
-                () => fetchData(37.98, 23.72) // Default Athens
-            );
-        };
+        window.onload = () => navigator.geolocation.getCurrentPosition(p => fetchData(p.coords.latitude, p.coords.longitude), () => fetchData(37.98, 23.72));
     </script>
 </body>
 </html>
