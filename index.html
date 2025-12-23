@@ -122,7 +122,7 @@
             if (!city) return;
 
             document.getElementById('app-content').classList.add('opacity-0');
-            updateProgress(10, `Searching for ${city}...`);
+            updateProgress(5, `Searching for ${city}...`);
 
             try {
                 const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
@@ -131,7 +131,6 @@
                 if (geoData.results) {
                     const { latitude, longitude, name, country } = geoData.results[0];
                     document.getElementById('loc-name').innerText = `${name}, ${country}`;
-                    updateProgress(30, `Loading Archive for ${name}...`);
                     fetchData(latitude, longitude);
                 } else {
                     alert("City not found");
@@ -145,18 +144,45 @@
         }
 
         async function fetchData(lat, lon) {
-            updateProgress(50, "Downloading 85 years of records...");
-            const historyUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=1940-01-01&end_date=2024-12-31&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean&timezone=auto`;
+            const baseUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=1940-01-01&end_date=2024-12-31&timezone=auto`;
             const currentUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
 
             try {
-                const [hRes, cRes] = await Promise.all([fetch(historyUrl), fetch(currentUrl)]);
-                updateProgress(80, "Processing Climate Data...");
-                const hData = await hRes.json();
-                const cData = await cRes.json();
-                processData(hData, cData.current_weather.temperature);
+                // Request 1: Max Temps
+                updateProgress(20, "Fetching Max Temperatures...");
+                const resMax = await fetch(`${baseUrl}&daily=temperature_2m_max`);
+                const dataMax = await resMax.json();
+
+                // Request 2: Min Temps
+                updateProgress(40, "Fetching Min Temperatures...");
+                const resMin = await fetch(`${baseUrl}&daily=temperature_2m_min`);
+                const dataMin = await resMin.json();
+
+                // Request 3: Mean Temps
+                updateProgress(60, "Fetching Daily Averages...");
+                const resMean = await fetch(`${baseUrl}&daily=temperature_2m_mean`);
+                const dataMean = await resMean.json();
+
+                // Request 4: Current Weather
+                updateProgress(80, "Checking Today's Weather...");
+                const resCurrent = await fetch(currentUrl);
+                const dataCurrent = await resCurrent.json();
+
+                updateProgress(90, "Assembling Data...");
+                
+                // Combine the separate fetches into one data object
+                const combinedData = {
+                    daily: {
+                        time: dataMax.daily.time,
+                        temperature_2m_max: dataMax.daily.temperature_2m_max,
+                        temperature_2m_min: dataMin.daily.temperature_2m_min,
+                        temperature_2m_mean: dataMean.daily.temperature_2m_mean
+                    }
+                };
+
+                processData(combinedData, dataCurrent.current_weather.temperature);
             } catch (e) {
-                alert("Weather server busy. Try again.");
+                alert("The weather archive is under high load. Please wait 10 seconds and try again.");
                 updateProgress(0, "");
             }
         }
@@ -177,7 +203,6 @@
                 if (t.endsWith(monthDay)) dailyHistory.push({ year, temp: max });
             });
 
-            // INDICES
             const calculateTropical = (yearGroup) => yearGroup.min.filter(m => m >= 20).length;
             const earlyT = Object.keys(yearlyData).slice(0, 20).map(y => calculateTropical(yearlyData[y]));
             const recentT = Object.keys(yearlyData).slice(-15).map(y => calculateTropical(yearlyData[y]));
@@ -190,7 +215,6 @@
             const sShift = (earlyS.reduce((a,b)=>a+b,0)/earlyS.length) - (recentS.reduce((a,b)=>a+b,0)/recentS.length);
             document.getElementById('spring-shift').innerText = `${Math.abs(sShift).toFixed(1)} Days Earlier`;
 
-            // UI
             document.getElementById('today-temp').innerText = `${currentTemp.toFixed(1)}°C`;
             const dailyTemps = dailyHistory.map(h => h.temp).filter(t => t !== null);
             const dailyAvg = dailyTemps.reduce((a, b) => a + b, 0) / dailyTemps.length;
