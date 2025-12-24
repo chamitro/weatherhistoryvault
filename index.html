@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -96,14 +97,57 @@
         let chartInstance = null;
         const today = new Date();
         const currentYear = today.getFullYear();
-        const startYear = currentYear - 50; // Always 50 years back from current year
+        const startYear = currentYear - 50;
         
         const monthDay = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         const formattedDate = today.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
 
-        // Update subtitle with dynamic year range
+        const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
         document.getElementById('date-subtitle').innerText = `50 Years of Climate Analysis (${startYear}-${currentYear})`;
         document.getElementById('chart-date-label').innerText = formattedDate;
+
+        function getCacheKey(lat, lon) {
+            return `weather_${lat.toFixed(2)}_${lon.toFixed(2)}_${startYear}`;
+        }
+
+        function getCachedData(lat, lon) {
+            const key = getCacheKey(lat, lon);
+            const cached = localStorage.getItem(key);
+            
+            if (cached) {
+                try {
+                    const data = JSON.parse(cached);
+                    const age = Date.now() - data.timestamp;
+                    
+                    if (age < CACHE_DURATION) {
+                        const ageMinutes = Math.round(age / 1000 / 60);
+                        console.log(`Using cached data (${ageMinutes} min old)`);
+                        return data.weatherData;
+                    } else {
+                        console.log('Cache expired, fetching fresh data');
+                        localStorage.removeItem(key);
+                    }
+                } catch (e) {
+                    console.error('Cache read error:', e);
+                    localStorage.removeItem(key);
+                }
+            }
+            return null;
+        }
+
+        function setCachedData(lat, lon, weatherData) {
+            const key = getCacheKey(lat, lon);
+            try {
+                localStorage.setItem(key, JSON.stringify({
+                    timestamp: Date.now(),
+                    weatherData: weatherData
+                }));
+                console.log('Data cached successfully');
+            } catch (e) {
+                console.error('Cache write error (storage full?):', e);
+            }
+        }
 
         function updateProgress(percent, status) {
             const container = document.getElementById('progress-container');
@@ -160,11 +204,11 @@
             }
         }
 
-        async function fetchWithRetry(url, retries = 3, baseDelay = 1500) {
+        async function fetchWithRetry(url, retries = 3, baseDelay = 2000) {
             for (let i = 0; i < retries; i++) {
                 try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout
+                    const timeoutId = setTimeout(() => controller.abort(), 35000); // 35s timeout for large requests
 
                     const response = await fetch(url, { signal: controller.signal });
                     clearTimeout(timeoutId);
@@ -206,18 +250,22 @@
         }
 
         async function fetchData(lat, lon) {
-            // Dynamically generate chunks based on current year
-            // Split 50 years into 5 chunks of 10 years each
-            const chunks = [];
-            for (let i = 0; i < 5; i++) {
-                const chunkStart = startYear + (i * 10);
-                const chunkEnd = Math.min(startYear + ((i + 1) * 10) - 1, currentYear);
-                chunks.push({
-                    start: `${chunkStart}-01-01`,
-                    end: `${chunkEnd}-12-31`,
-                    label: `${chunkStart}-${chunkEnd}`
-                });
+            // Check cache first
+            const cached = getCachedData(lat, lon);
+            if (cached) {
+                updateProgress(50, "Loading from cache...");
+                updateProgress(90, "Processing cached data...");
+                processData(cached.historical, cached.current);
+                return;
             }
+
+            // ONLY 2 CHUNKS - Split 50 years in half (25 years each)
+            const midYear = startYear + 25;
+            
+            const chunks = [
+                { start: `${startYear}-01-01`, end: `${midYear - 1}-12-31`, label: `${startYear}-${midYear - 1}` },
+                { start: `${midYear}-01-01`, end: `${currentYear}-12-31`, label: `${midYear}-${currentYear}` }
+            ];
 
             const allData = {
                 time: [],
@@ -233,26 +281,35 @@
                 const cData = await fetchWithRetry(currentUrl);
                 const currentTemp = cData.current_weather.temperature;
 
-                // Fetch all chunks in parallel for maximum speed
-                updateProgress(35, `Loading ${startYear}-${currentYear} climate data...`);
-                
-                const chunkPromises = chunks.map(chunk => {
+                // Fetch ONLY 2 chunks sequentially
+                for (let i = 0; i < chunks.length; i++) {
+                    const chunk = chunks[i];
+                    const progress = 35 + ((i / chunks.length) * 50);
+                    updateProgress(progress, `Loading ${chunk.label}...`);
+                    
                     const historyUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${chunk.start}&end_date=${chunk.end}&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean&timezone=auto`;
-                    return fetchWithRetry(historyUrl);
-                });
-
-                const results = await Promise.all(chunkPromises);
-
-                // Merge all results
-                updateProgress(80, "Processing data...");
-                results.forEach(hData => {
+                    
+                    const hData = await fetchWithRetry(historyUrl);
+                    
                     allData.time.push(...hData.daily.time);
                     allData.temperature_2m_max.push(...hData.daily.temperature_2m_max);
                     allData.temperature_2m_min.push(...hData.daily.temperature_2m_min);
                     allData.temperature_2m_mean.push(...hData.daily.temperature_2m_mean);
-                });
+                    
+                    // Wait 1 second between the two chunks
+                    if (i < chunks.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                }
 
                 updateProgress(90, "Calculating climate trends...");
+                
+                // Cache the fetched data
+                setCachedData(lat, lon, {
+                    historical: { daily: allData },
+                    current: currentTemp
+                });
+                
                 processData({ daily: allData }, currentTemp);
 
             } catch (e) {
@@ -260,9 +317,9 @@
                 let errorMsg = "Unable to load weather data.\n\n";
 
                 if (e.message.includes('429') || e.message.includes('Rate limit')) {
-                    errorMsg += "⚠️ API rate limit reached. Please wait 2-3 minutes and try again.";
+                    errorMsg += "⚠️ API rate limit reached.\n\nThe Open-Meteo API is temporarily busy. Please:\n• Wait 3-5 minutes\n• Try again\n\nTip: Previously searched cities load instantly from cache!";
                 } else if (e.message.includes('timeout')) {
-                    errorMsg += "⏱️ Request timeout. Server took too long to respond.\n\nTry again with a better connection or from a desktop browser.";
+                    errorMsg += "⏱️ Request timeout.\n\nThe server took too long to respond. Try again with a better connection.";
                 } else if (e.message.includes('Failed to fetch') || e.message.includes('Network')) {
                     errorMsg += "🌐 Network error. Please check your internet connection.";
                 } else if (e.message.includes('503') || e.message.includes('504')) {
@@ -298,21 +355,18 @@
             const firstDecade = years.slice(0, 10);
             const lastDecade = years.slice(-10);
             
-            // Update labels with actual year ranges
             const firstDecadeRange = `${firstDecade[0]}-${firstDecade[firstDecade.length-1]}`;
             const lastDecadeRange = `${lastDecade[0]}-${lastDecade[lastDecade.length-1]}`;
             
             document.getElementById('tropical-nights-desc').innerText = 
                 `Extra nights per year where temp stayed >20°C (${lastDecadeRange} vs ${firstDecadeRange}).`;
 
-            // Tropical Nights: Compare first decade vs last decade
             const calculateTropical = (yearGroup) => yearGroup.min.filter(m => m >= 20).length;
             const earlyT = firstDecade.map(y => calculateTropical(yearlyData[y]));
             const recentT = lastDecade.map(y => calculateTropical(yearlyData[y]));
             const tropDiff = (recentT.reduce((a,b)=>a+b,0)/recentT.length) - (earlyT.reduce((a,b)=>a+b,0)/earlyT.length);
             document.getElementById('tropical-nights').innerText = `+${Math.max(0, tropDiff).toFixed(1)} Nights`;
 
-            // Temperature Acceleration: warming rate comparison
             const firstDecadeAvgs = firstDecade.map(y => 
                 yearlyData[y].mean.reduce((a,b)=>a+b,0)/yearlyData[y].mean.length
             );
@@ -325,7 +379,6 @@
             const totalChange = avgLast - avgFirst;
             document.getElementById('temp-acceleration').innerText = `+${totalChange.toFixed(2)}°C`;
 
-            // UI Updates
             document.getElementById('today-temp').innerText = `${currentTemp.toFixed(1)}°C`;
             const dailyTemps = dailyHistory.map(h => h.temp).filter(t => t !== null);
             const dailyAvg = dailyTemps.reduce((a, b) => a + b, 0) / dailyTemps.length;
@@ -337,13 +390,11 @@
             tag.innerText = diff > 0 ? `${diff}°C WARMER` : `${Math.abs(diff)}°C COLDER`;
             tag.className = `px-3 py-1 rounded-full text-xs font-bold ${diff > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
 
-            // Annual averages for warmest/coldest years
             const annualAverages = Object.keys(yearlyData).map(y => ({ 
                 year: y, 
                 avg: yearlyData[y].mean.reduce((a,b)=>a+b,0)/yearlyData[y].mean.length 
             }));
 
-            // Growth rate: last decade vs first decade
             const growth = ((avgLast - avgFirst) / avgFirst) * 100;
             document.getElementById('growth-rate').innerText = `${growth > 0 ? '+' : ''}${growth.toFixed(1)}%`;
 
@@ -396,4 +447,4 @@
         window.onload = () => navigator.geolocation.getCurrentPosition(p => fetchData(p.coords.latitude, p.coords.longitude), () => fetchData(37.98, 23.72));
     </script>
 </body>
-</html> 
+</html>
