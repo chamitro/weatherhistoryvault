@@ -62,12 +62,12 @@
                 <div class="bg-indigo-900 p-6 rounded-2xl text-white shadow-lg">
                     <h3 class="text-indigo-300 text-xs font-bold uppercase tracking-widest mb-1">Tropical Nights Increase</h3>
                     <p class="text-3xl font-bold" id="tropical-nights">--</p>
-                    <p class="text-[11px] text-indigo-200 mt-1" id="tropical-nights-desc">Extra nights per year where temp stayed >20°C.</p>
+                    <p class="text-[11px] text-indigo-200 mt-1">Extra nights per year where temp stayed >20°C (Recent vs 1970s).</p>
                 </div>
                 <div class="bg-emerald-800 p-6 rounded-2xl text-white shadow-lg">
                     <h3 class="text-emerald-300 text-xs font-bold uppercase tracking-widest mb-1">Temperature Acceleration</h3>
                     <p class="text-3xl font-bold" id="temp-acceleration">--</p>
-                    <p class="text-[11px] text-emerald-200 mt-1">Warming rate: last 10 years vs first 10 years.</p>
+                    <p class="text-[11px] text-emerald-200 mt-1">Warming rate: last 10 years vs first 10 years of dataset.</p>
                 </div>
             </div>
 
@@ -96,9 +96,7 @@
     <script>
         let chartInstance = null;
         const today = new Date();
-        
-        // FIX: currentYear must be 2024 because 2025 data is not complete in the archive
-        const currentYear = today.getFullYear() - 1; 
+        const currentYear = 2024; // Fix: Stop at last complete year to avoid Error 400
         const startYear = currentYear - 50;
 
         const monthDay = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -109,83 +107,64 @@
 
         function updateProgress(percent, status) {
             const container = document.getElementById('progress-container');
-            const bar = document.getElementById('progress-bar');
-            const percText = document.getElementById('progress-percent');
-            const statusText = document.getElementById('progress-status');
-
+            document.getElementById('progress-bar').style.width = percent + '%';
+            document.getElementById('progress-percent').innerText = Math.round(percent) + '%';
+            document.getElementById('progress-status').innerText = status;
             container.classList.remove('hidden');
-            bar.style.width = percent + '%';
-            percText.innerText = Math.round(percent) + '%';
-            statusText.innerText = status;
-
-            if (percent >= 100) {
-                setTimeout(() => container.classList.add('hidden'), 1000);
-            }
+            if (percent >= 100) setTimeout(() => container.classList.add('hidden'), 1000);
         }
 
         async function searchCity() {
-            const cityInput = document.getElementById('cityInput');
-            const city = cityInput.value.trim();
+            const city = document.getElementById('cityInput').value.trim();
             if (!city) return;
-
             document.getElementById('app-content').classList.add('opacity-0');
-            updateProgress(10, `Searching for ${city}...`);
-
+            updateProgress(5, "Searching city...");
             try {
-                const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
+                const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&format=json`);
                 const geoData = await geoRes.json();
-
-                if (geoData.results && geoData.results.length > 0) {
+                if (geoData.results) {
                     const { latitude, longitude, name, country } = geoData.results[0];
                     document.getElementById('loc-name').innerText = `${name}, ${country}`;
                     fetchData(latitude, longitude);
-                } else {
-                    alert("City not found");
-                    updateProgress(0, "");
                 }
-            } catch (e) {
-                alert("Connection error.");
-                updateProgress(0, "");
-            }
+            } catch (e) { alert("City not found"); }
         }
 
         async function fetchData(lat, lon) {
-            updateProgress(30, "Fetching Today's Temperature...");
+            updateProgress(15, "Fetching current weather...");
+            const baseUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${startYear}-01-01&end_date=${currentYear}-12-31&timezone=auto`;
             
-            const currentUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
-            // Request 50 years of data. We split into 2 requests for mobile stability.
-            const midYear = startYear + 25;
-            const historyPart1 = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${startYear}-01-01&end_date=${midYear-1}-12-31&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean&timezone=auto`;
-            const historyPart2 = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${midYear}-01-01&end_date=${currentYear}-12-31&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean&timezone=auto`;
-
             try {
-                const cRes = await fetch(currentUrl);
+                // Today's live temp
+                const cRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
                 const cData = await cRes.json();
                 const currentTemp = cData.current_weather.temperature;
 
-                updateProgress(50, "Loading 1974-1999...");
-                const hRes1 = await fetch(historyPart1);
-                const hData1 = await hRes1.json();
+                // Sequential fetches for historical stability
+                updateProgress(35, "Loading historical means...");
+                const resMean = await fetch(`${baseUrl}&daily=temperature_2m_mean`);
+                const dataMean = await resMean.json();
 
-                updateProgress(75, "Loading 2000-2024...");
-                const hRes2 = await fetch(historyPart2);
-                const hData2 = await hRes2.json();
+                updateProgress(60, "Loading historical maximums...");
+                const resMax = await fetch(`${baseUrl}&daily=temperature_2m_max`);
+                const dataMax = await resMax.json();
 
-                // Merge historical data
-                const combinedHistorical = {
+                updateProgress(85, "Loading historical minimums...");
+                const resMin = await fetch(`${baseUrl}&daily=temperature_2m_min`);
+                const dataMin = await resMin.json();
+
+                const combined = {
                     daily: {
-                        time: [...hData1.daily.time, ...hData2.daily.time],
-                        temperature_2m_max: [...hData1.daily.temperature_2m_max, ...hData2.daily.temperature_2m_max],
-                        temperature_2m_min: [...hData1.daily.temperature_2m_min, ...hData2.daily.temperature_2m_min],
-                        temperature_2m_mean: [...hData1.daily.temperature_2m_mean, ...hData2.daily.temperature_2m_mean]
+                        time: dataMean.daily.time,
+                        temperature_2m_mean: dataMean.daily.temperature_2m_mean,
+                        temperature_2m_max: dataMax.daily.temperature_2m_max,
+                        temperature_2m_min: dataMin.daily.temperature_2m_min
                     }
                 };
 
-                updateProgress(90, "Analyzing Trends...");
-                processData(combinedHistorical, currentTemp);
-
+                processData(combined, currentTemp);
             } catch (e) {
-                alert("Server busy. Please try again in a few seconds.");
+                alert("Climate server busy. Please wait 10 seconds and try again.");
                 updateProgress(0, "");
             }
         }
@@ -196,50 +175,50 @@
 
             hData.daily.time.forEach((t, i) => {
                 const year = t.split('-')[0];
+                const mean = hData.daily.temperature_2m_mean[i];
                 const max = hData.daily.temperature_2m_max[i];
                 const min = hData.daily.temperature_2m_min[i];
-                const mean = hData.daily.temperature_2m_mean[i];
 
                 if (!yearlyData[year]) yearlyData[year] = { mean: [], min: [] };
-                yearlyData[year].mean.push(mean);
-                yearlyData[year].min.push(min);
+                if (mean !== null) yearlyData[year].mean.push(mean);
+                if (min !== null) yearlyData[year].min.push(min);
                 if (t.endsWith(monthDay)) dailyHistory.push({ year, temp: max });
             });
 
-            // Climate Calculations
             const years = Object.keys(yearlyData).sort();
-            const first10 = years.slice(0, 10);
-            const last10 = years.slice(-10);
+            const earlyDecade = years.slice(0, 10);
+            const recentDecade = years.slice(-10);
 
-            const calculateTropical = (yearList) => {
-                let total = 0;
-                yearList.forEach(y => {
-                    total += yearlyData[y].min.filter(m => m >= 20).length;
+            // Calculations
+            const getAvg = (list) => {
+                let sum = 0, count = 0;
+                list.forEach(y => {
+                    sum += yearlyData[y].mean.reduce((a, b) => a + b, 0);
+                    count += yearlyData[y].mean.length;
                 });
-                return total / yearList.length;
+                return sum / count;
             };
 
-            const earlyT = calculateTropical(first10);
-            const recentT = calculateTropical(last10);
-            document.getElementById('tropical-nights').innerText = `+${Math.max(0, recentT - earlyT).toFixed(1)} Nights`;
+            const earlyAvg = getAvg(earlyDecade);
+            const recentAvg = getAvg(recentDecade);
+            const warmingTrend = recentAvg - earlyAvg;
 
-            const getDecadeAvg = (yearList) => {
-                let sum = 0;
-                yearList.forEach(y => {
-                    sum += yearlyData[y].mean.reduce((a, b) => a + b, 0) / yearlyData[y].mean.length;
-                });
-                return sum / yearList.length;
+            document.getElementById('temp-acceleration').innerText = `+${warmingTrend.toFixed(2)}°C`;
+            document.getElementById('growth-rate').innerText = `${((warmingTrend / earlyAvg) * 100).toFixed(1)}%`;
+
+            // Tropical nights logic
+            const getTropCount = (list) => {
+                let count = 0;
+                list.forEach(y => count += yearlyData[y].min.filter(m => m >= 20).length);
+                return count / list.length;
             };
+            const tropDiff = getTropCount(recentDecade) - getTropCount(earlyDecade);
+            document.getElementById('tropical-nights').innerText = `+${Math.max(0, tropDiff).toFixed(1)} Nights`;
 
-            const earlyAvg = getDecadeAvg(first10);
-            const recentAvg = getDecadeAvg(last10);
-            document.getElementById('temp-acceleration').innerText = `+${(recentAvg - earlyAvg).toFixed(2)}°C`;
-            document.getElementById('growth-rate').innerText = `${(((recentAvg - earlyAvg) / earlyAvg) * 100).toFixed(1)}%`;
-
-            // UI
+            // UI Rendering
             document.getElementById('today-temp').innerText = `${currentTemp.toFixed(1)}°C`;
-            const dailyTemps = dailyHistory.map(h => h.temp).filter(t => t !== null);
-            const dailyAvg = dailyTemps.reduce((a, b) => a + b, 0) / dailyTemps.length;
+            const validDailyHistory = dailyHistory.filter(h => h.temp !== null);
+            const dailyAvg = validDailyHistory.reduce((a, b) => a + b.temp, 0) / validDailyHistory.length;
             document.getElementById('avg-temp').innerText = `${dailyAvg.toFixed(1)}°C`;
 
             const diff = (currentTemp - dailyAvg).toFixed(1);
@@ -247,27 +226,27 @@
             tag.innerText = diff > 0 ? `${diff}°C WARMER` : `${Math.abs(diff)}°C COLDER`;
             tag.className = `px-3 py-1 rounded-full text-xs font-bold ${diff > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
 
-            const annualAverages = years.map(y => ({
+            // Rankings
+            const annuals = years.map(y => ({
                 year: y,
                 avg: yearlyData[y].mean.reduce((a, b) => a + b, 0) / yearlyData[y].mean.length
             }));
+            const sorted = [...annuals].sort((a, b) => b.avg - a.avg);
 
-            const sorted = [...annualAverages].sort((a, b) => b.avg - a.avg);
+            const displayList = (data, id, color) => {
+                document.getElementById(id).innerHTML = data.map((item, i) => `
+                    <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <span class="font-bold text-slate-700">#${i+1} ${item.year}</span>
+                        <span class="${color} font-black">${item.avg.toFixed(1)}°C</span>
+                    </div>`).join('');
+            };
+
             displayList(sorted.slice(0, 5), 'warmest-list', 'text-red-600');
-            displayList([...annualAverages].sort((a, b) => a.avg - b.avg).slice(0, 5), 'coldest-list', 'text-blue-600');
+            displayList([...annuals].sort((a, b) => a.avg - b.avg).slice(0, 5), 'coldest-list', 'text-blue-600');
 
             renderChart(dailyHistory);
-            updateProgress(100, "Analysis Complete!");
             document.getElementById('app-content').classList.remove('opacity-0');
-        }
-
-        function displayList(data, elementId, colorClass) {
-            const container = document.getElementById(elementId);
-            container.innerHTML = data.map((item, i) => `
-                <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <span class="font-bold text-slate-700">#${i+1} ${item.year}</span>
-                    <span class="${colorClass} font-black">${item.avg.toFixed(1)}°C</span>
-                </div>`).join('');
+            updateProgress(100, "Analysis Complete!");
         }
 
         function renderChart(history) {
@@ -280,22 +259,23 @@
                     datasets: [{ 
                         label: `Max Temp on ${formattedDate}`, 
                         data: history.map(h => h.temp), 
-                        borderColor: '#4f46e5', 
-                        tension: 0.4, fill: true, backgroundColor: 'rgba(79, 70, 229, 0.1)' 
+                        borderColor: '#4f46e5', tension: 0.4, fill: true, backgroundColor: 'rgba(79, 70, 229, 0.1)' 
                     }]
                 },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } }
-                }
+                options: { responsive: true, maintainAspectRatio: false }
             });
         }
 
-        window.onload = () => navigator.geolocation.getCurrentPosition(
-            p => fetchData(p.coords.latitude, p.coords.longitude), 
-            () => fetchData(37.98, 23.72)
-        );
+        window.onload = () => {
+            const gpsTimeout = setTimeout(() => fetchData(37.98, 23.72), 3000); // Fallback to Athens
+            navigator.geolocation.getCurrentPosition(p => {
+                clearTimeout(gpsTimeout);
+                fetchData(p.coords.latitude, p.coords.longitude);
+            }, () => {
+                clearTimeout(gpsTimeout);
+                fetchData(37.98, 23.72);
+            });
+        };
     </script>
 </body>
 </html>
