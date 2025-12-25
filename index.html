@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -156,70 +157,38 @@
             }
         }
 
-        async function fetchWithRetry(url, retries = 3, baseDelay = 2000) {
+        async function fetchWithRetry(url, retries = 3, delay = 1000) {
             for (let i = 0; i < retries; i++) {
                 try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
-
-                    const response = await fetch(url, { signal: controller.signal });
-                    clearTimeout(timeoutId);
+                    const response = await fetch(url);
 
                     if (response.status === 429) {
-                        // Rate limited - exponential backoff
+                        // Rate limited - wait and retry
                         if (i < retries - 1) {
-                            const delay = baseDelay * Math.pow(2, i);
-                            console.log(`Rate limited, waiting ${delay}ms before retry ${i + 1}/${retries}`);
-                            await new Promise(resolve => setTimeout(resolve, delay));
-                            continue;
-                        }
-                        throw new Error('Rate limit exceeded after retries');
-                    }
-
-                    if (response.status === 504 || response.status === 503) {
-                        // Gateway timeout or service unavailable - retry
-                        if (i < retries - 1) {
-                            const delay = baseDelay * (i + 1);
-                            console.log(`Server timeout, retrying in ${delay}ms`);
-                            await new Promise(resolve => setTimeout(resolve, delay));
+                            await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
                             continue;
                         }
                     }
 
                     if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        throw new Error(`HTTP ${response.status}`);
                     }
 
                     return await response.json();
                 } catch (error) {
-                    if (error.name === 'AbortError') {
-                        console.log('Request timeout, retrying...');
-                        if (i === retries - 1) throw new Error('Request timeout after multiple attempts');
-                        continue;
-                    }
-
                     if (i === retries - 1) throw error;
-
-                    // Network error - wait before retry
-                    const delay = baseDelay * (i + 1);
-                    console.log(`Network error, retrying in ${delay}ms:`, error.message);
                     await new Promise(resolve => setTimeout(resolve, delay));
                 }
             }
         }
 
         async function fetchData(lat, lon) {
-            // Split into smaller, more manageable chunks (10-year periods)
+            // Split 85 years into 4 chunks for reliability
             const chunks = [
-                { start: '1940-01-01', end: '1949-12-31', label: '1940s' },
-                { start: '1950-01-01', end: '1959-12-31', label: '1950s' },
-                { start: '1960-01-01', end: '1969-12-31', label: '1960s' },
-                { start: '1970-01-01', end: '1979-12-31', label: '1970s' },
-                { start: '1980-01-01', end: '1989-12-31', label: '1980s' },
-                { start: '1990-01-01', end: '1999-12-31', label: '1990s' },
-                { start: '2000-01-01', end: '2009-12-31', label: '2000s' },
-                { start: '2010-01-01', end: '2019-12-31', label: '2010s' },
-                { start: '2020-01-01', end: '2024-12-31', label: '2020s' }
+                { start: '1940-01-01', end: '1961-12-31', label: '1940-1961' },
+                { start: '1962-01-01', end: '1983-12-31', label: '1962-1983' },
+                { start: '1984-01-01', end: '2005-12-31', label: '1984-2005' },
+                { start: '2006-01-01', end: '2024-12-31', label: '2006-2024' }
             ];
 
             const allData = {
@@ -236,53 +205,41 @@
                 const cData = await fetchWithRetry(currentUrl);
                 const currentTemp = cData.current_weather.temperature;
 
-                // Fetch chunks in parallel (3 at a time to avoid overwhelming)
-                const batchSize = 3;
-                for (let i = 0; i < chunks.length; i += batchSize) {
-                    const batch = chunks.slice(i, i + batchSize);
-                    const progress = 30 + ((i / chunks.length) * 55);
+                // Fetch historical data in chunks
+                for (let i = 0; i < chunks.length; i++) {
+                    const chunk = chunks[i];
+                    const progress = 30 + (i / chunks.length) * 50;
+                    updateProgress(progress, `Loading ${chunk.label}...`);
 
-                    updateProgress(progress, `Loading ${batch.map(b => b.label).join(', ')}...`);
+                    const historyUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${chunk.start}&end_date=${chunk.end}&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean&timezone=auto`;
 
-                    // Fetch batch in parallel
-                    const batchPromises = batch.map(chunk => {
-                        const historyUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${chunk.start}&end_date=${chunk.end}&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean&timezone=auto`;
-                        return fetchWithRetry(historyUrl);
-                    });
+                    const hData = await fetchWithRetry(historyUrl);
 
-                    const batchResults = await Promise.all(batchPromises);
+                    // Merge chunk data
+                    allData.time.push(...hData.daily.time);
+                    allData.temperature_2m_max.push(...hData.daily.temperature_2m_max);
+                    allData.temperature_2m_min.push(...hData.daily.temperature_2m_min);
+                    allData.temperature_2m_mean.push(...hData.daily.temperature_2m_mean);
 
-                    // Merge batch results
-                    batchResults.forEach(hData => {
-                        allData.time.push(...hData.daily.time);
-                        allData.temperature_2m_max.push(...hData.daily.temperature_2m_max);
-                        allData.temperature_2m_min.push(...hData.daily.temperature_2m_min);
-                        allData.temperature_2m_mean.push(...hData.daily.temperature_2m_mean);
-                    });
-
-                    // Small delay between batches (only if not last batch)
-                    if (i + batchSize < chunks.length) {
-                        await new Promise(resolve => setTimeout(resolve, 500));
+                    // Small delay between chunks to be nice to the API
+                    if (i < chunks.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 300));
                     }
                 }
 
-                updateProgress(90, "Processing 85 years of climate data...");
+                updateProgress(85, "Processing 85 years of climate data...");
                 processData({ daily: allData }, currentTemp);
 
             } catch (e) {
                 console.error('Fetch error:', e);
                 let errorMsg = "Unable to load weather data.\n\n";
 
-                if (e.message.includes('429') || e.message.includes('Rate limit')) {
-                    errorMsg += "⚠️ API rate limit reached.\n\nThe Open-Meteo API is currently busy. Please:\n• Wait 2-5 minutes\n• Try again\n\nThis happens when many requests are made in a short time.";
-                } else if (e.message.includes('timeout')) {
-                    errorMsg += "⏱️ Request timeout.\n\nThe server took too long to respond. This can happen with:\n• Slow mobile connections\n• Server overload\n\nTry again with a better connection.";
-                } else if (e.message.includes('Failed to fetch') || e.message.includes('Network')) {
-                    errorMsg += "🌐 Network error.\n\nPlease check:\n• Internet connection\n• WiFi/mobile data\n• Firewall settings";
-                } else if (e.message.includes('503') || e.message.includes('504')) {
-                    errorMsg += "🔧 Server temporarily unavailable.\n\nThe API is experiencing issues. Please try again in a few minutes.";
+                if (e.message.includes('429') || e.message.includes('Rate')) {
+                    errorMsg += "API rate limit reached. Please wait 5 minutes and try again.";
+                } else if (e.message.includes('Failed to fetch')) {
+                    errorMsg += "Network error. Please check your internet connection.";
                 } else {
-                    errorMsg += `Error: ${e.message}\n\nPlease try again. If the problem persists, try:\n• Refreshing the page\n• Using a desktop browser\n• Checking back later`;
+                    errorMsg += `Error: ${e.message}\n\nPlease try again in a few moments.`;
                 }
 
                 alert(errorMsg);
