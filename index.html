@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Climate Vault | 50-Year Analysis</title>
+    <title>Climate Vault | GitHub Edition</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -24,46 +24,42 @@
         </div>
 
         <div id="progress-container" class="hidden max-w-md mx-auto mb-10 text-center">
-            <div class="animate-pulse">
-                <div class="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden mb-2">
-                    <div id="progress-bar" class="bg-indigo-600 h-full transition-all duration-500" style="width: 0%"></div>
-                </div>
-                <span id="progress-status" class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Accessing Archive...</span>
+            <div class="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden mb-2">
+                <div id="progress-bar" class="bg-indigo-600 h-full transition-all duration-300" style="width: 0%"></div>
             </div>
+            <span id="progress-status" class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Initialising...</span>
         </div>
 
-        <div id="app-content" class="opacity-0 transition-opacity duration-700 space-y-6">
+        <div id="app-content" class="hidden space-y-6">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="bg-white p-6 rounded-[2rem] shadow-xl border border-slate-100 text-center">
-                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Current in <span id="loc-name">...</span></h3>
-                    <p id="today-temp" class="text-5xl font-black text-indigo-950">--°C</p>
-                    <div id="comparison-tag" class="mt-2 inline-block px-3 py-1 rounded-full text-[9px] font-bold uppercase"></div>
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Location</h3>
+                    <p id="loc-name" class="text-xl font-bold text-indigo-950 truncate">...</p>
+                    <p id="today-temp" class="text-5xl font-black text-indigo-600 mt-2">--°C</p>
                 </div>
                 <div class="bg-white p-6 rounded-[2rem] shadow-xl border border-slate-100 text-center">
                     <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">50Y Mean</h3>
-                    <p id="avg-temp" class="text-5xl font-black text-slate-700">--°C</p>
-                    <p class="text-[9px] text-slate-400 font-bold mt-1 uppercase">1974-2024</p>
+                    <p id="avg-temp" class="text-5xl font-black text-slate-700 mt-2">--°C</p>
                 </div>
                 <div class="bg-white p-6 rounded-[2rem] shadow-xl border border-slate-100 text-center">
-                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Drift</h3>
-                    <p id="growth-rate" class="text-5xl font-black text-orange-500">--</p>
-                    <p class="text-[9px] text-slate-400 font-bold mt-1 uppercase">Warming Trend</p>
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Shift</h3>
+                    <p id="growth-rate" class="text-5xl font-black text-orange-500 mt-2">--</p>
                 </div>
             </div>
 
             <div class="bg-white p-6 rounded-[2rem] shadow-2xl border border-slate-100">
-                <div class="relative h-[350px]">
+                <div class="relative h-[300px]">
                     <canvas id="historyChart"></canvas>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="bg-white p-6 rounded-[2rem] shadow-lg border-t-4 border-red-500">
-                    <h3 class="text-[10px] font-black text-slate-600 uppercase mb-4 tracking-widest text-center">Top 5 Warmest Years</h3>
+                    <h3 class="text-[10px] font-black text-slate-600 uppercase mb-4 text-center">Warmest Years</h3>
                     <div id="warmest-list" class="space-y-2"></div>
                 </div>
                 <div class="bg-white p-6 rounded-[2rem] shadow-lg border-t-4 border-blue-500">
-                    <h3 class="text-[10px] font-black text-slate-600 uppercase mb-4 tracking-widest text-center">Top 5 Coldest Years</h3>
+                    <h3 class="text-[10px] font-black text-slate-600 uppercase mb-4 text-center">Coldest Years</h3>
                     <div id="coldest-list" class="space-y-2"></div>
                 </div>
             </div>
@@ -74,45 +70,45 @@
         let chartInstance = null;
         const API_KEY = 'RHNABBCDXDL2KW5HXLNU9338V';
 
-        function updateUI(perc, msg) {
-            const container = document.getElementById('progress-container');
-            container.classList.remove('hidden');
+        function showLoading(perc, status) {
+            document.getElementById('progress-container').classList.remove('hidden');
             document.getElementById('progress-bar').style.width = perc + '%';
-            document.getElementById('progress-status').innerText = msg;
-            if (perc >= 100) setTimeout(() => container.classList.add('hidden'), 1000);
+            document.getElementById('progress-status').innerText = status;
         }
 
         async function searchCity() {
             const city = document.getElementById('cityInput').value.trim();
             if (!city) return;
 
-            document.getElementById('app-content').classList.add('opacity-0');
-            updateUI(20, "Establishing Connection...");
+            // Clear previous data
+            document.getElementById('app-content').classList.add('hidden');
+            showLoading(20, "Contacting Archive...");
 
+            // THE URL (Verified Format)
             const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${encodeURIComponent(city)}/1974-01-01/2024-12-31?unitGroup=metric&include=days,current&key=${API_KEY}&contentType=json`;
 
             try {
-                updateUI(50, "Downloading Archive...");
                 const response = await fetch(url);
-
+                
                 if (!response.ok) {
-                    if (response.status === 401) throw new Error("API Key is still activating or invalid.");
-                    throw new Error("The weather server is busy.");
+                    const err = await response.json();
+                    throw new Error(err.message || "API Error");
                 }
 
                 const data = await response.json();
-                updateUI(85, "Analyzing Trends...");
+                showLoading(80, "Calculating...");
                 processData(data);
+
             } catch (e) {
                 console.error(e);
-                alert(`Status: ${e.message}`);
-                updateUI(0, "");
+                alert("ERROR: " + e.message + "\nCheck your API Key or City Name.");
+                document.getElementById('progress-container').classList.add('hidden');
             }
         }
 
         function processData(data) {
             document.getElementById('loc-name').innerText = data.resolvedAddress;
-            document.getElementById('today-temp').innerText = `${data.currentConditions.temp.toFixed(1)}°C`;
+            document.getElementById('today-temp').innerText = data.currentConditions.temp.toFixed(1) + "°C";
 
             const yearly = {};
             data.days.forEach(day => {
@@ -127,13 +123,60 @@
             })).filter(d => d.year < 2025);
 
             const totalAvg = annualData.reduce((a, b) => a + b.avg, 0) / annualData.length;
-            document.getElementById('avg-temp').innerText = `${totalAvg.toFixed(1)}°C`;
+            document.getElementById('avg-temp').innerText = totalAvg.toFixed(1) + "°C";
 
-            // Calculate warming shift between first and last years
             const shift = annualData[annualData.length-1].avg - annualData[0].avg;
-            document.getElementById('growth-rate').innerText = `${shift > 0 ? '+' : ''}${shift.toFixed(2)}°C`;
+            document.getElementById('growth-rate').innerText = (shift > 0 ? "+" : "") + shift.toFixed(2) + "°C";
 
-            const diff = data.currentConditions.temp - totalAvg;
-            const tag = document.getElementById('comparison-tag');
-            tag.innerText = `${Math.abs(diff).toFixed(1)}°C ${diff > 0 ? 'ABOVE' : 'BELOW'} AVG`;
-            tag.className = `mt-2 inline-block px-3 py-1 rounded-full text-[9px] font-bold ${diff > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-60
+            // Rankings
+            const sorted = [...annualData].sort((a, b) => b.avg - a.avg);
+            const renderList = (list, id, color) => {
+                document.getElementById(id).innerHTML = list.map((item, i) => `
+                    <div class="flex justify-between p-2 bg-slate-50 rounded-lg text-xs">
+                        <span class="font-bold">${item.year}</span>
+                        <span class="${color} font-black">${item.avg.toFixed(1)}°C</span>
+                    </div>`).join('');
+            };
+
+            renderList(sorted.slice(0, 5), 'warmest-list', 'text-red-600');
+            renderList([...annualData].sort((a,b)=>a.avg-b.avg).slice(0, 5), 'coldest-list', 'text-blue-600');
+
+            renderChart(annualData);
+            
+            document.getElementById('progress-container').classList.add('hidden');
+            document.getElementById('app-content').classList.remove('hidden');
+        }
+
+        function renderChart(data) {
+            const ctx = document.getElementById('historyChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => d.year),
+                    datasets: [{
+                        data: data.map(d => d.avg),
+                        borderColor: '#4f46e5',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        fill: true,
+                        backgroundColor: 'rgba(79, 70, 229, 0.05)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // Auto-run for Athens
+        window.onload = () => {
+            document.getElementById('cityInput').value = "Athens";
+            searchCity();
+        };
+    </script>
+</body>
+</html>
