@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weather History Vault - 10 Year Trend</title>
+    <title>Weather History Vault - Spring Analysis</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -12,50 +12,50 @@
     <div class="max-w-6xl mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
             <h1 class="text-4xl font-extrabold text-indigo-900 tracking-tight">Weather History Vault</h1>
-            <p class="text-slate-500 mt-2 text-lg">10-Year Climate Analysis</p>
+            <p class="text-slate-500 mt-2 text-lg">10-Year Spring & Climate Trend</p>
         </header>
 
         <div class="flex flex-col md:flex-row gap-4 mb-8 justify-center">
-            <input type="text" id="cityInput" placeholder="Enter city (e.g. Paris, New York)" 
+            <input type="text" id="cityInput" placeholder="Enter city (e.g. London, Tokyo)" 
                    class="px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none w-full md:w-96 shadow-sm">
             <button onclick="searchCity()" id="searchBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-lg font-semibold transition-all shadow-md">
-                View 10-Year Trend
+                Analyze 10 Years
             </button>
         </div>
 
         <div id="app-content" class="opacity-0 transition-opacity duration-500">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Today in <span id="loc-name">...</span></h3>
-                    <p id="today-temp" class="text-5xl font-black text-indigo-600 my-2">--°C</p>
-                    <span id="comparison-tag" class="px-3 py-1 rounded-full text-xs font-bold"></span>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Today</h3>
+                    <p id="today-temp" class="text-4xl font-black text-indigo-600 my-2">--°C</p>
+                    <span id="comparison-tag" class="px-3 py-1 rounded-full text-[10px] font-bold"></span>
                 </div>
 
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">10-Year Day Avg</h3>
-                    <p id="avg-temp" class="text-5xl font-black text-slate-700 my-2">--°C</p>
-                    <p class="text-xs text-slate-400 italic">Average for this day since 2015</p>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">10y Day Avg</h3>
+                    <p id="avg-temp" class="text-4xl font-black text-slate-700 my-2">--°C</p>
                 </div>
 
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Recent Growth</h3>
-                    <p id="growth-rate" class="text-5xl font-black text-orange-500 my-2">--%</p>
-                    <p class="text-xs text-slate-400 italic">Vs. previous year avg</p>
+                <div class="bg-emerald-800 p-6 rounded-2xl text-white shadow-lg text-center">
+                    <h3 class="text-emerald-300 text-xs font-bold uppercase tracking-widest mb-1">Spring Arrival</h3>
+                    <p id="spring-shift" class="text-3xl font-bold">--</p>
+                    <p class="text-[10px] text-emerald-200 mt-1">Shift in first 15°C+ week (Recent vs 5yrs ago)</p>
+                </div>
+
+                <div class="bg-indigo-900 p-6 rounded-2xl text-white shadow-lg text-center">
+                    <h3 class="text-indigo-300 text-xs font-bold uppercase tracking-widest mb-1">Recent Growth</h3>
+                    <p id="growth-rate" class="text-3xl font-bold">--%</p>
+                    <p class="text-[10px] text-indigo-200 mt-1">Last Year vs 10y Average</p>
                 </div>
             </div>
 
             <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 mb-8">
                 <h3 class="text-center font-bold text-slate-700 mb-4 uppercase text-sm tracking-wide">
-                    Max Temp on <span id="chart-date-label">this day</span> (Last 10 Years)
+                    Max Temp on <span id="chart-date-label">this day</span>
                 </h3>
-                <div class="relative h-[350px]">
+                <div class="relative h-[300px]">
                     <canvas id="historyChart"></canvas>
                 </div>
-            </div>
-
-            <div class="bg-white p-6 rounded-2xl shadow-sm border-t-4 border-red-500">
-                <h3 class="text-sm font-bold text-slate-600 uppercase mb-4 tracking-wider text-center">Annual Average (Last 10 Years)</h3>
-                <div id="year-list" class="grid grid-cols-2 md:grid-cols-5 gap-3"></div>
             </div>
         </div>
     </div>
@@ -64,94 +64,91 @@
         let chartInstance = null;
         const today = new Date();
         const monthDay = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        const formattedDate = today.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
-        document.getElementById('chart-date-label').innerText = formattedDate;
-
+        
         async function searchCity() {
             const city = document.getElementById('cityInput').value.trim();
             if (!city) return alert("Please enter a city");
-
             const btn = document.getElementById('searchBtn');
             btn.disabled = true;
-            btn.innerText = 'Fetching...';
+            btn.innerText = 'Calculating...';
 
             try {
                 const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
                 const geoData = await geoRes.json();
-
                 if (geoData.results?.length > 0) {
-                    const { latitude, longitude, name, country } = geoData.results[0];
-                    document.getElementById('loc-name').innerText = `${name}, ${country}`;
+                    const { latitude, longitude, name } = geoData.results[0];
                     await fetchData(latitude, longitude);
-                } else {
-                    alert("City not found");
-                }
-            } catch (e) {
-                alert("Connection error. Try again.");
-            } finally {
-                btn.disabled = false;
-                btn.innerText = 'View 10-Year Trend';
-            }
+                } else { alert("City not found"); }
+            } catch (e) { alert("Error connecting to API"); }
+            finally { btn.disabled = false; btn.innerText = 'Analyze 10 Years'; }
         }
 
         async function fetchData(lat, lon) {
             const end = new Date().toISOString().split('T')[0];
             const start = (new Date().getFullYear() - 10) + "-01-01";
-
-            const archiveUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&daily=temperature_2m_max,temperature_2m_mean&timezone=auto`;
+            const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&daily=temperature_2m_max,temperature_2m_mean&timezone=auto`;
             
-            try {
-                const response = await fetch(archiveUrl);
-                const data = await response.json();
-                processData(data);
-            } catch (e) {
-                alert("Error fetching climate data.");
-            }
+            const res = await fetch(url);
+            const data = await res.json();
+            processData(data);
         }
 
         function processData(data) {
             const dailyHistory = [];
-            const yearlyStats = {};
+            const yearlyData = {};
 
             data.daily.time.forEach((t, i) => {
                 const year = t.split('-')[0];
-                const max = data.daily.temperature_2m_max[i];
                 const mean = data.daily.temperature_2m_mean[i];
+                const max = data.daily.temperature_2m_max[i];
 
-                if (!yearlyStats[year]) yearlyStats[year] = { sum: 0, count: 0 };
-                yearlyStats[year].sum += mean;
-                yearlyStats[year].count++;
+                if (!yearlyData[year]) yearlyData[year] = { means: [] };
+                yearlyData[year].means.push(mean);
 
-                if (t.endsWith(monthDay)) {
-                    dailyHistory.push({ year, temp: max });
+                if (t.endsWith(monthDay)) dailyHistory.push({ year, temp: max });
+            });
+
+            // SPRING CALCULATION: Find the first day of the year where temp > 15°C for 3 consecutive days
+            const findSpringDay = (means) => {
+                // We only look at first 180 days (Jan to June)
+                for(let i=0; i<180; i++) {
+                    if(means[i] > 15 && means[i+1] > 15 && means[i+2] > 15) return i;
+                }
+                return null;
+            };
+
+            const years = Object.keys(yearlyData).sort();
+            const earlySprings = []; 
+            const recentSprings = [];
+
+            years.forEach((y, idx) => {
+                const day = findSpringDay(yearlyData[y].means);
+                if (day !== null) {
+                    if (idx < 5) earlySprings.push(day); // First 5 years
+                    else recentSprings.push(day);        // Last 5 years
                 }
             });
 
-            // Update UI
-            const latest = dailyHistory[dailyHistory.length - 1].temp;
-            const avg = dailyHistory.reduce((a, b) => a + b.temp, 0) / dailyHistory.length;
-            
+            // Calculate Shift
+            const avgEarly = earlySprings.reduce((a,b)=>a+b, 0) / earlySprings.length;
+            const avgRecent = recentSprings.reduce((a,b)=>a+b, 0) / recentSprings.length;
+            const shift = avgEarly - avgRecent;
+
+            const shiftEl = document.getElementById('spring-shift');
+            if (!isNaN(shift)) {
+                shiftEl.innerText = shift > 0 ? `${shift.toFixed(1)} Days Earlier` : `${Math.abs(shift).toFixed(1)} Days Later`;
+            } else {
+                shiftEl.innerText = "N/A";
+            }
+
+            // General UI Updates
+            const latest = dailyHistory[dailyHistory.length-1].temp;
+            const avg = dailyHistory.reduce((a,b)=>a+b.temp, 0) / dailyHistory.length;
             document.getElementById('today-temp').innerText = `${latest.toFixed(1)}°C`;
             document.getElementById('avg-temp').innerText = `${avg.toFixed(1)}°C`;
-
-            const diff = (latest - avg).toFixed(1);
-            const tag = document.getElementById('comparison-tag');
-            tag.innerText = diff > 0 ? `${diff}°C ABOVE AVG` : `${Math.abs(diff)}°C BELOW AVG`;
-            tag.className = `px-3 py-1 rounded-full text-xs font-bold ${diff > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
-
-            // Annual list
-            const yearList = document.getElementById('year-list');
-            yearList.innerHTML = '';
-            const years = Object.keys(yearlyStats).reverse();
             
-            years.forEach(y => {
-                const yearAvg = yearlyStats[y].sum / yearlyStats[y].count;
-                yearList.innerHTML += `
-                    <div class="bg-slate-50 p-2 rounded-lg border text-center">
-                        <div class="text-[10px] font-bold text-slate-400">${y}</div>
-                        <div class="text-sm font-black text-slate-700">${yearAvg.toFixed(1)}°C</div>
-                    </div>`;
-            });
+            const growth = ((latest - avg) / avg) * 100;
+            document.getElementById('growth-rate').innerText = `${growth > 0 ? '+' : ''}${growth.toFixed(1)}%`;
 
             renderChart(dailyHistory);
             document.getElementById('app-content').classList.remove('opacity-0');
@@ -161,21 +158,19 @@
             const ctx = document.getElementById('historyChart').getContext('2d');
             if (chartInstance) chartInstance.destroy();
             chartInstance = new Chart(ctx, {
-                type: 'bar',
+                type: 'line',
                 data: {
                     labels: history.map(h => h.year),
                     datasets: [{
                         label: 'Max Temp (°C)',
                         data: history.map(h => h.temp),
-                        backgroundColor: '#6366f1',
-                        borderRadius: 5
+                        borderColor: '#4f46e5',
+                        tension: 0.3,
+                        fill: true,
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)'
                     }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: false } }
-                }
+                options: { responsive: true, maintainAspectRatio: false }
             });
         }
     </script>
