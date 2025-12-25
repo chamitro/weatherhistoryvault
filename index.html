@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Climate Vault Pro</title>
+    <title>Climate Vault | 50-Year Analysis</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -11,62 +11,60 @@
 
     <div class="max-w-4xl mx-auto p-4 md:p-8">
         <header class="text-center mb-10">
-            <h1 class="text-4xl font-black text-indigo-950 tracking-tighter">CLIMATE VAULT</h1>
-            <p class="text-slate-500 font-bold uppercase text-xs tracking-widest mt-2">Professional Climate Analysis</p>
+            <h1 class="text-4xl font-black text-indigo-950 tracking-tighter uppercase">Climate Vault</h1>
+            <p class="text-slate-500 font-bold uppercase text-[10px] tracking-[0.3em] mt-2">Live Historical Data Engine</p>
         </header>
 
         <div class="flex flex-col md:flex-row gap-3 mb-10 justify-center">
-            <input type="text" id="cityInput" placeholder="Enter city (e.g. Athens, Madrid)" 
-                   class="px-5 py-4 rounded-2xl border-2 border-slate-200 focus:border-indigo-500 outline-none w-full md:w-96 shadow-sm transition-all">
+            <input type="text" id="cityInput" placeholder="Enter city (e.g. Athens)" 
+                   class="px-5 py-4 rounded-2xl border-2 border-slate-200 focus:border-indigo-500 outline-none w-full md:w-96 shadow-sm">
             <button onclick="searchCity()" id="searchBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-10 py-4 rounded-2xl font-bold shadow-lg active:scale-95 transition-all">
-                Analyze History
+                Analyze
             </button>
         </div>
 
         <div id="progress-container" class="hidden max-w-md mx-auto mb-10 text-center">
             <div class="animate-pulse">
-                <div class="h-2 w-full bg-slate-200 rounded-full overflow-hidden mb-2">
+                <div class="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden mb-2">
                     <div id="progress-bar" class="bg-indigo-600 h-full transition-all duration-500" style="width: 0%"></div>
                 </div>
-                <span id="progress-status" class="text-xs font-black text-indigo-600 uppercase tracking-widest">Processing...</span>
+                <span id="progress-status" class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Accessing Archive...</span>
             </div>
         </div>
 
         <div id="app-content" class="opacity-0 transition-opacity duration-700 space-y-6">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100 text-center">
-                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Today in <span id="loc-name">...</span></h3>
-                    <p id="today-temp" class="text-6xl font-black text-indigo-950">--°C</p>
-                    <div id="comparison-tag" class="mt-3 inline-block px-4 py-1 rounded-full text-[10px] font-bold"></div>
+                <div class="bg-white p-6 rounded-[2rem] shadow-xl border border-slate-100 text-center">
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Current in <span id="loc-name">...</span></h3>
+                    <p id="today-temp" class="text-5xl font-black text-indigo-950">--°C</p>
+                    <div id="comparison-tag" class="mt-2 inline-block px-3 py-1 rounded-full text-[9px] font-bold uppercase"></div>
                 </div>
-
-                <div class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-200 text-center">
-                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Historic Mean</h3>
-                    <p id="avg-temp" class="text-6xl font-black text-slate-700">--°C</p>
-                    <p class="text-[10px] text-slate-400 font-bold mt-2">1974 - 2024 BASELINE</p>
+                <div class="bg-white p-6 rounded-[2rem] shadow-xl border border-slate-100 text-center">
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">50Y Mean</h3>
+                    <p id="avg-temp" class="text-5xl font-black text-slate-700">--°C</p>
+                    <p class="text-[9px] text-slate-400 font-bold mt-1 uppercase">1974-2024</p>
                 </div>
-
-                <div class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-200 text-center">
-                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Climate Shift</h3>
-                    <p id="growth-rate" class="text-6xl font-black text-orange-500">--</p>
-                    <p class="text-[10px] text-slate-400 font-bold mt-2">50-YEAR CHANGE</p>
+                <div class="bg-white p-6 rounded-[2rem] shadow-xl border border-slate-100 text-center">
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Drift</h3>
+                    <p id="growth-rate" class="text-5xl font-black text-orange-500">--</p>
+                    <p class="text-[9px] text-slate-400 font-bold mt-1 uppercase">Warming Trend</p>
                 </div>
             </div>
 
-            <div class="bg-white p-8 rounded-[2.5rem] shadow-2xl border border-slate-100">
-                <div class="relative h-[400px]">
+            <div class="bg-white p-6 rounded-[2rem] shadow-2xl border border-slate-100">
+                <div class="relative h-[350px]">
                     <canvas id="historyChart"></canvas>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-white p-8 rounded-[2.5rem] shadow-lg border-t-8 border-red-500">
-                    <h3 class="text-xs font-black text-slate-600 uppercase mb-6 tracking-widest text-center">Warmest Years</h3>
-                    <div id="warmest-list" class="space-y-3"></div>
+                <div class="bg-white p-6 rounded-[2rem] shadow-lg border-t-4 border-red-500">
+                    <h3 class="text-[10px] font-black text-slate-600 uppercase mb-4 tracking-widest text-center">Top 5 Warmest Years</h3>
+                    <div id="warmest-list" class="space-y-2"></div>
                 </div>
-                <div class="bg-white p-8 rounded-[2.5rem] shadow-lg border-t-8 border-blue-500">
-                    <h3 class="text-xs font-black text-slate-600 uppercase mb-6 tracking-widest text-center">Coldest Years</h3>
-                    <div id="coldest-list" class="space-y-3"></div>
+                <div class="bg-white p-6 rounded-[2rem] shadow-lg border-t-4 border-blue-500">
+                    <h3 class="text-[10px] font-black text-slate-600 uppercase mb-4 tracking-widest text-center">Top 5 Coldest Years</h3>
+                    <div id="coldest-list" class="space-y-2"></div>
                 </div>
             </div>
         </div>
@@ -74,7 +72,6 @@
 
     <script>
         let chartInstance = null;
-        // Your Verified Key
         const API_KEY = 'RHNABBCDXDL2KW5HXLNU9338V';
 
         function updateUI(perc, msg) {
@@ -90,37 +87,32 @@
             if (!city) return;
 
             document.getElementById('app-content').classList.add('opacity-0');
-            updateUI(20, "Connecting...");
+            updateUI(20, "Establishing Connection...");
 
-            // Use 1974 to end of 2024 to avoid Error 400 for current year data
             const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${encodeURIComponent(city)}/1974-01-01/2024-12-31?unitGroup=metric&include=days,current&key=${API_KEY}&contentType=json`;
 
             try {
-                updateUI(50, "Downloading Data...");
-                const response = await fetch(url, {
-                    method: 'GET',
-                    mode: 'cors'
-                });
+                updateUI(50, "Downloading Archive...");
+                const response = await fetch(url);
 
                 if (!response.ok) {
-                    if (response.status === 401) throw new Error("Key still activating. Wait 10 mins.");
-                    throw new Error(`Server error: ${response.status}`);
+                    if (response.status === 401) throw new Error("API Key is still activating or invalid.");
+                    throw new Error("The weather server is busy.");
                 }
 
                 const data = await response.json();
-                updateUI(85, "Analyzing...");
+                updateUI(85, "Analyzing Trends...");
                 processData(data);
             } catch (e) {
                 console.error(e);
-                alert(`Error: ${e.message}\n\nTroubleshooting:\n1. Disable AdBlockers/VPN\n2. Try Mobile Data instead of WiFi`);
-                updateUI(0, "Error");
+                alert(`Status: ${e.message}`);
+                updateUI(0, "");
             }
         }
 
         function processData(data) {
             document.getElementById('loc-name').innerText = data.resolvedAddress;
-            const currentTemp = data.currentConditions.temp;
-            document.getElementById('today-temp').innerText = `${currentTemp.toFixed(1)}°C`;
+            document.getElementById('today-temp').innerText = `${data.currentConditions.temp.toFixed(1)}°C`;
 
             const yearly = {};
             data.days.forEach(day => {
@@ -132,69 +124,16 @@
             const annualData = Object.keys(yearly).map(y => ({
                 year: y,
                 avg: yearly[y].reduce((a, b) => a + b, 0) / yearly[y].length
-            }));
+            })).filter(d => d.year < 2025);
 
             const totalAvg = annualData.reduce((a, b) => a + b.avg, 0) / annualData.length;
             document.getElementById('avg-temp').innerText = `${totalAvg.toFixed(1)}°C`;
 
+            // Calculate warming shift between first and last years
             const shift = annualData[annualData.length-1].avg - annualData[0].avg;
             document.getElementById('growth-rate').innerText = `${shift > 0 ? '+' : ''}${shift.toFixed(2)}°C`;
 
-            const diff = currentTemp - totalAvg;
+            const diff = data.currentConditions.temp - totalAvg;
             const tag = document.getElementById('comparison-tag');
-            tag.innerText = `${Math.abs(diff).toFixed(1)}°C ${diff > 0 ? 'ABOVE' : 'BELOW'} BASELINE`;
-            tag.className = `mt-3 inline-block px-4 py-1 rounded-full text-[10px] font-bold ${diff > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
-
-            const sorted = [...annualData].sort((a, b) => b.avg - a.avg);
-            const renderList = (list, id, color) => {
-                document.getElementById(id).innerHTML = list.map((item, i) => `
-                    <div class="flex justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                        <span class="font-bold text-slate-700">${item.year}</span>
-                        <span class="${color} font-black">${item.avg.toFixed(1)}°C</span>
-                    </div>`).join('');
-            };
-
-            renderList(sorted.slice(0, 5), 'warmest-list', 'text-red-600');
-            renderList([...annualData].sort((a,b)=>a.avg-b.avg).slice(0, 5), 'coldest-list', 'text-blue-600');
-
-            renderChart(annualData);
-            updateUI(100, "Success");
-            document.getElementById('app-content').classList.remove('opacity-0');
-        }
-
-        function renderChart(data) {
-            const ctx = document.getElementById('historyChart').getContext('2d');
-            if (chartInstance) chartInstance.destroy();
-            chartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: data.map(d => d.year),
-                    datasets: [{
-                        data: data.map(d => d.avg),
-                        borderColor: '#4f46e5',
-                        borderWidth: 3,
-                        backgroundColor: 'rgba(79, 70, 229, 0.05)',
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { ticks: { color: '#94a3b8', font: { weight: 'bold' } }, grid: { display: false } },
-                        y: { ticks: { color: '#94a3b8', font: { weight: 'bold' } }, grid: { color: '#f1f5f9' } }
-                    }
-                }
-            });
-        }
-
-        window.onload = () => {
-            document.getElementById('cityInput').value = "Athens";
-            searchCity();
-        };
-    </script>
-</body>
-</html>
+            tag.innerText = `${Math.abs(diff).toFixed(1)}°C ${diff > 0 ? 'ABOVE' : 'BELOW'} AVG`;
+            tag.className = `mt-2 inline-block px-3 py-1 rounded-full text-[9px] font-bold ${diff > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-60
