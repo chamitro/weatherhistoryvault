@@ -51,13 +51,13 @@
                 <div class="bg-emerald-800 p-6 rounded-2xl text-white shadow-lg text-center">
                     <h3 class="text-emerald-300 text-xs font-bold uppercase tracking-widest mb-1">Spring Arrival</h3>
                     <p id="spring-shift" class="text-3xl font-bold">--</p>
-                    <p class="text-[10px] text-emerald-200 mt-1">First 15°C Week Shift</p>
+                    <p class="text-[10px] text-emerald-200 mt-1">First 15°C Week Shift (Early vs Recent)</p>
                 </div>
 
-                <div id="extreme-card" class="p-6 rounded-2xl text-white shadow-lg text-center transition-all duration-500 bg-slate-400">
-                    <h3 id="extreme-title" class="text-xs font-bold uppercase tracking-widest mb-1">Extreme Days</h3>
+                <div class="bg-orange-600 p-6 rounded-2xl text-white shadow-lg text-center">
+                    <h3 class="text-orange-200 text-xs font-bold uppercase tracking-widest mb-1">Extreme Days</h3>
                     <p id="extreme-days" class="text-3xl font-bold">--</p>
-                    <p id="extreme-label" class="text-[10px] opacity-90 mt-1">Analyzing...</p>
+                    <p id="extreme-label" class="text-[10px] text-orange-100 mt-1">Times this day exceeded 30°C</p>
                 </div>
             </div>
 
@@ -166,31 +166,18 @@
                     pollCard.style.borderBottom = "4px solid #22c55e";
                 } else {
                     pollComp.innerText = `${(val / 5).toFixed(1)}x Above Safety Limit`;
-                    pollComp.className = `px-2 py-1 rounded-md text-[9px] font-black uppercase ${val > 25 ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-700'}`;
-                    pollCard.style.borderBottom = `4px solid ${val > 25 ? '#ef4444' : '#eab308'}`;
+                    pollComp.className = `px-2 py-1 rounded-md text-[9px] font-black uppercase ${val > 35 ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-700'}`;
+                    pollCard.style.borderBottom = `4px solid ${val > 35 ? '#ef4444' : '#eab308'}`;
                 }
             } else { pollVal.innerText = "N/A"; pollComp.innerText = "No Data Available"; }
 
-            // 3. SMART Extreme Index Logic
-            const avgDayTemp = dailyHistory.reduce((a,b)=>a+b.temp, 0) / (dailyHistory.length || 1);
-            const extremeCard = document.getElementById('extreme-card');
-            const extremeTitle = document.getElementById('extreme-title');
-            const extremeVal = document.getElementById('extreme-days');
-            const extremeLabel = document.getElementById('extreme-label');
-
-            if (avgDayTemp >= 18) {
-                const count = dailyHistory.filter(h => h.temp >= 30).length;
-                extremeCard.className = "p-6 rounded-2xl text-white shadow-lg text-center transition-all duration-500 bg-orange-600";
-                extremeTitle.innerText = "Extreme Heat";
-                extremeVal.innerText = `${count} Times`;
-                extremeLabel.innerText = "Times this day hit 30°C+";
-            } else {
-                const count = dailyHistory.filter(h => h.temp <= 2).length;
-                extremeCard.className = "p-6 rounded-2xl text-white shadow-lg text-center transition-all duration-500 bg-blue-800";
-                extremeTitle.innerText = "Frost Risk";
-                extremeVal.innerText = `${count} Times`;
-                extremeLabel.innerText = "Times this day hit 2°C or lower";
-            }
+            // 3. Extreme Heat Index Logic
+            const extremeDays = dailyHistory.filter(h => h.temp >= 30).length;
+            document.getElementById('extreme-days').innerText = `${extremeDays} Times`;
+            const heatLabel = document.getElementById('extreme-label');
+            if (extremeDays > 10) heatLabel.innerText = "High frequency for this day";
+            else if (extremeDays > 0) heatLabel.innerText = "Occasional extreme heat";
+            else heatLabel.innerText = "Historically mild day";
 
             // 4. Annual List with Hottest/Coldest Highlighting
             const yearList = document.getElementById('year-list');
@@ -213,11 +200,12 @@
 
             // 5. General UI
             const latest = dailyHistory[dailyHistory.length-1];
+            const avgTemp = dailyHistory.reduce((a,b)=>a+b.temp, 0) / (dailyHistory.length || 1);
             document.getElementById('today-temp').innerText = `${latest ? latest.temp.toFixed(1) : '--'}°C`;
             document.getElementById('today-humid').innerText = `${latest ? Math.round(latest.humid) : '--'}%`;
-            document.getElementById('avg-temp').innerText = `${avgDayTemp.toFixed(1)}°C`;
+            document.getElementById('avg-temp').innerText = `${avgTemp.toFixed(1)}°C`;
             if (latest) {
-                const diff = (latest.temp - avgDayTemp).toFixed(1);
+                const diff = (latest.temp - avgTemp).toFixed(1);
                 const tag = document.getElementById('comparison-tag');
                 tag.innerText = diff > 0 ? `${diff}°C ABOVE AVG` : `${Math.abs(diff)}°C BELOW AVG`;
                 tag.className = `px-3 py-1 rounded-full text-[10px] font-bold ${diff > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
@@ -236,4 +224,20 @@
                     labels: history.map(h => h.year),
                     datasets: [
                         { label: `Temp (°C)`, data: history.map(h => h.temp), borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', tension: 0.1, fill: true, pointRadius: 2, yAxisID: 'y' },
-                        { label: `Humidity (%)`, data: history.map(h => h.humid), borderColor: '#06b6d4', borderDash: [5, 5
+                        { label: `Humidity (%)`, data: history.map(h => h.humid), borderColor: '#06b6d4', borderDash: [5, 5], tension: 0.1, fill: false, pointRadius: 0, yAxisID: 'y1' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true, position: 'bottom' } },
+                    scales: { 
+                        y: { position: 'left', beginAtZero: false },
+                        y1: { position: 'right', grid: { display: false } }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
