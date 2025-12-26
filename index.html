@@ -24,7 +24,8 @@
         </div>
 
         <div id="app-content" class="opacity-0 transition-opacity duration-500">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 mb-8">
+                
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
                     <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Today in <span id="loc-name">...</span></h3>
                     <p id="today-temp" class="text-4xl font-black text-indigo-600 my-2">--°C</p>
@@ -51,13 +52,19 @@
                 <div class="bg-emerald-800 p-6 rounded-2xl text-white shadow-lg text-center">
                     <h3 class="text-emerald-300 text-xs font-bold uppercase tracking-widest mb-1">Spring Arrival</h3>
                     <p id="spring-shift" class="text-3xl font-bold">--</p>
-                    <p class="text-[10px] text-emerald-200 mt-1">First 15°C Week Shift (Early vs Recent)</p>
+                    <p class="text-[10px] text-emerald-200 mt-1">First 15°C Week Shift</p>
                 </div>
 
                 <div class="bg-orange-600 p-6 rounded-2xl text-white shadow-lg text-center">
                     <h3 class="text-orange-200 text-xs font-bold uppercase tracking-widest mb-1">Extreme Days</h3>
                     <p id="extreme-days" class="text-3xl font-bold">--</p>
-                    <p id="extreme-label" class="text-[10px] text-orange-100 mt-1">Times this day exceeded 30°C</p>
+                    <p id="extreme-label" class="text-[10px] text-orange-100 mt-1">Times reached 30°C+</p>
+                </div>
+
+                <div class="bg-blue-900 p-6 rounded-2xl text-white shadow-lg text-center border-b-4 border-blue-400">
+                    <h3 class="text-blue-200 text-xs font-bold uppercase tracking-widest mb-1">Freezing Days</h3>
+                    <p id="freezing-days" class="text-3xl font-bold">--</p>
+                    <p id="freezing-label" class="text-[10px] text-blue-100 mt-1">Times dropped below 0°C</p>
                 </div>
             </div>
 
@@ -171,13 +178,21 @@
                 }
             } else { pollVal.innerText = "N/A"; pollComp.innerText = "No Data Available"; }
 
-            // 3. Extreme Heat Index Logic
+            // 3. Temperature Threshold Logic (Heat & Freezing)
             const extremeDays = dailyHistory.filter(h => h.temp >= 30).length;
             document.getElementById('extreme-days').innerText = `${extremeDays} Times`;
             const heatLabel = document.getElementById('extreme-label');
             if (extremeDays > 10) heatLabel.innerText = "High frequency for this day";
             else if (extremeDays > 0) heatLabel.innerText = "Occasional extreme heat";
             else heatLabel.innerText = "Historically mild day";
+
+            // New: Freezing Days
+            const freezingDays = dailyHistory.filter(h => h.temp < 0).length;
+            document.getElementById('freezing-days').innerText = `${freezingDays} Times`;
+            const freezeLabel = document.getElementById('freezing-label');
+            if (freezingDays > 10) freezeLabel.innerText = "Commonly freezing date";
+            else if (freezingDays > 0) freezeLabel.innerText = "Occasional freezing";
+            else freezeLabel.innerText = "Historically above freezing";
 
             // 4. Annual List with Hottest/Coldest Highlighting
             const yearList = document.getElementById('year-list');
