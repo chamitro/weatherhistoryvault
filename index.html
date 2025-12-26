@@ -51,13 +51,13 @@
                 <div class="bg-emerald-800 p-6 rounded-2xl text-white shadow-lg text-center">
                     <h3 class="text-emerald-300 text-xs font-bold uppercase tracking-widest mb-1">Spring Arrival</h3>
                     <p id="spring-shift" class="text-3xl font-bold">--</p>
-                    <p class="text-[10px] text-emerald-200 mt-1">Shift in first 15°C Week (1975 vs 2025)</p>
+                    <p class="text-[10px] text-emerald-200 mt-1">First 15°C Week Shift (Early vs Recent)</p>
                 </div>
 
-                <div class="bg-indigo-900 p-6 rounded-2xl text-white shadow-lg text-center">
-                    <h3 class="text-indigo-300 text-xs font-bold uppercase tracking-widest mb-1">Growth Index</h3>
-                    <p id="growth-rate" class="text-3xl font-bold">--%</p>
-                    <p class="text-[10px] text-indigo-200 mt-1">Today vs 50y Average</p>
+                <div class="bg-orange-600 p-6 rounded-2xl text-white shadow-lg text-center">
+                    <h3 class="text-orange-200 text-xs font-bold uppercase tracking-widest mb-1">Extreme Days</h3>
+                    <p id="extreme-days" class="text-3xl font-bold">--</p>
+                    <p id="extreme-label" class="text-[10px] text-orange-100 mt-1">Times this day exceeded 30°C</p>
                 </div>
             </div>
 
@@ -107,7 +107,6 @@
         async function fetchData(lat, lon) {
             const end = new Date().toISOString().split('T')[0];
             const start = (new Date().getFullYear() - 50) + "-01-01";
-
             const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&daily=temperature_2m_max,temperature_2m_mean,relative_humidity_2m_mean&timezone=auto`;
             const pollutionUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=pm2_5`;
 
@@ -116,11 +115,8 @@
                     fetch(url).then(r => r.json()),
                     fetch(pollutionUrl).then(r => r.json()).catch(() => null)
                 ]);
-
                 processData(weatherRes, pollutionRes);
-            } catch (e) {
-                alert("Error fetching climate data.");
-            }
+            } catch (e) { alert("Error fetching climate data."); }
         }
 
         function processData(data, pollutionData) {
@@ -132,27 +128,21 @@
                 const mean = data.daily.temperature_2m_mean[i];
                 const max = data.daily.temperature_2m_max[i];
                 const humid = data.daily.relative_humidity_2m_mean[i];
-
                 if (!yearlyData[year]) yearlyData[year] = { means: [], humids: [] };
                 if (mean !== null) yearlyData[year].means.push(mean);
-                if (humid !== null) yearlyData[year].humids.push(humid);
-
                 if (t.endsWith(monthDay)) dailyHistory.push({ year, temp: max, humid: humid });
             });
 
-            // 1. Spring Calculation (Comparing first 25 years vs last 25 years)
+            // 1. Spring Calculation
             const findSpringDay = (means) => {
                 for(let i=0; i<180; i++) {
                     if(means[i] > 15 && means[i+1] > 15 && means[i+2] > 15) return i;
                 }
                 return null;
             };
-
             const years = Object.keys(yearlyData).sort();
-            const earlySprings = []; 
-            const recentSprings = [];
+            const earlySprings = [], recentSprings = [];
             const splitPoint = Math.floor(years.length / 2);
-
             years.forEach((y, idx) => {
                 const day = findSpringDay(yearlyData[y].means);
                 if (day !== null) {
@@ -160,70 +150,65 @@
                     else recentSprings.push(day);
                 }
             });
-
             const avgEarly = earlySprings.length ? earlySprings.reduce((a,b)=>a+b, 0) / earlySprings.length : 0;
             const avgRecent = recentSprings.length ? recentSprings.reduce((a,b)=>a+b, 0) / recentSprings.length : 0;
             const shift = avgEarly - avgRecent;
-            const shiftEl = document.getElementById('spring-shift');
+            document.getElementById('spring-shift').innerText = (earlySprings.length && recentSprings.length) ? (shift > 0 ? `${shift.toFixed(1)} Days Earlier` : `${Math.abs(shift).toFixed(1)} Days Later`) : "N/A";
 
-            if (earlySprings.length && recentSprings.length) {
-                shiftEl.innerText = shift > 0 ? `${shift.toFixed(1)} Days Earlier` : `${Math.abs(shift).toFixed(1)} Days Later`;
-            } else {
-                shiftEl.innerText = "N/A";
-            }
-
-            // 2. Pollution Logic
-            const pollVal = document.getElementById('pollution-val');
-            const pollComp = document.getElementById('pollution-comparison');
-            const pollCard = document.getElementById('pollution-card');
-
+            // 2. Pollution
+            const pollVal = document.getElementById('pollution-val'), pollComp = document.getElementById('pollution-comparison'), pollCard = document.getElementById('pollution-card');
             if (pollutionData && pollutionData.current) {
                 const val = pollutionData.current.pm2_5;
-                const whoLimit = 5; 
                 pollVal.innerText = val.toFixed(1);
-                pollVal.classList.add('text-slate-800');
-
-                if (val <= whoLimit) {
+                if (val <= 5) {
                     pollComp.innerText = "Within Safety Limit";
                     pollComp.className = "px-2 py-1 rounded-md text-[9px] font-black uppercase bg-green-100 text-green-600";
                     pollCard.style.borderBottom = "4px solid #22c55e";
                 } else {
-                    const times = (val / whoLimit).toFixed(1);
-                    pollComp.innerText = `${times}x Above Safety Limit`;
+                    pollComp.innerText = `${(val / 5).toFixed(1)}x Above Safety Limit`;
                     pollComp.className = `px-2 py-1 rounded-md text-[9px] font-black uppercase ${val > 35 ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-700'}`;
                     pollCard.style.borderBottom = `4px solid ${val > 35 ? '#ef4444' : '#eab308'}`;
                 }
-            } else {
-                pollVal.innerText = "N/A";
-                pollComp.innerText = "No Data Available";
-            }
+            } else { pollVal.innerText = "N/A"; pollComp.innerText = "No Data Available"; }
 
-            // 3. Annual Average List (Expanded to 50 items)
+            // 3. Extreme Heat Index Logic
+            const extremeDays = dailyHistory.filter(h => h.temp >= 30).length;
+            document.getElementById('extreme-days').innerText = `${extremeDays} Times`;
+            const heatLabel = document.getElementById('extreme-label');
+            if (extremeDays > 10) heatLabel.innerText = "High frequency for this day";
+            else if (extremeDays > 0) heatLabel.innerText = "Occasional extreme heat";
+            else heatLabel.innerText = "Historically mild day";
+
+            // 4. Annual List with Hottest/Coldest Highlighting
             const yearList = document.getElementById('year-list');
             yearList.innerHTML = '';
-            [...years].reverse().forEach(y => {
-                const yearAvg = yearlyData[y].means.reduce((a,b)=>a+b, 0) / (yearlyData[y].means.length || 1);
+            const processedAverages = years.map(y => ({ year: y, avg: yearlyData[y].means.reduce((a,b)=>a+b, 0) / (yearlyData[y].means.length || 1) }));
+            const maxAvg = Math.max(...processedAverages.map(p => p.avg));
+            const minAvg = Math.min(...processedAverages.map(p => p.avg));
+
+            [...processedAverages].reverse().forEach(p => {
+                let colorClass = "bg-slate-50 border-slate-100";
+                if (p.avg === maxAvg) colorClass = "bg-red-50 border-red-200 ring-2 ring-red-500 ring-inset";
+                if (p.avg === minAvg) colorClass = "bg-blue-50 border-blue-200 ring-2 ring-blue-500 ring-inset";
+                
                 yearList.innerHTML += `
-                    <div class="bg-slate-50 p-2 rounded-lg border border-slate-100 text-center">
-                        <div class="text-[9px] font-bold text-slate-400 uppercase">${y}</div>
-                        <div class="text-sm font-black text-slate-700">${yearAvg.toFixed(1)}°C</div>
+                    <div class="${colorClass} p-2 rounded-lg border text-center transition-transform hover:scale-105">
+                        <div class="text-[9px] font-bold text-slate-400 uppercase">${p.year}</div>
+                        <div class="text-sm font-black text-slate-700">${p.avg.toFixed(1)}°C</div>
                     </div>`;
             });
 
-            // 4. UI Stats
+            // 5. General UI
             const latest = dailyHistory[dailyHistory.length-1];
             const avgTemp = dailyHistory.reduce((a,b)=>a+b.temp, 0) / (dailyHistory.length || 1);
-
             document.getElementById('today-temp').innerText = `${latest ? latest.temp.toFixed(1) : '--'}°C`;
             document.getElementById('today-humid').innerText = `${latest ? Math.round(latest.humid) : '--'}%`;
             document.getElementById('avg-temp').innerText = `${avgTemp.toFixed(1)}°C`;
-
             if (latest) {
-                const growth = ((latest.temp - avgTemp) / avgTemp) * 100;
+                const diff = (latest.temp - avgTemp).toFixed(1);
                 const tag = document.getElementById('comparison-tag');
-                tag.innerText = growth > 0 ? "ABOVE AVERAGE" : "BELOW AVERAGE";
-                tag.className = `px-3 py-1 rounded-full text-[10px] font-bold ${growth > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
-                document.getElementById('growth-rate').innerText = `${growth > 0 ? '+' : ''}${growth.toFixed(1)}%`;
+                tag.innerText = diff > 0 ? `${diff}°C ABOVE AVG` : `${Math.abs(diff)}°C BELOW AVG`;
+                tag.className = `px-3 py-1 rounded-full text-[10px] font-bold ${diff > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
             }
 
             renderChart(dailyHistory);
@@ -238,26 +223,8 @@
                 data: {
                     labels: history.map(h => h.year),
                     datasets: [
-                        {
-                            label: `Temp (°C)`,
-                            data: history.map(h => h.temp),
-                            borderColor: '#4f46e5',
-                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                            tension: 0.1, // Reduced tension for better performance with many points
-                            fill: true,
-                            pointRadius: 2,
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: `Humidity (%)`,
-                            data: history.map(h => h.humid),
-                            borderColor: '#06b6d4',
-                            borderDash: [5, 5],
-                            tension: 0.1,
-                            fill: false,
-                            pointRadius: 0,
-                            yAxisID: 'y1'
-                        }
+                        { label: `Temp (°C)`, data: history.map(h => h.temp), borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', tension: 0.1, fill: true, pointRadius: 2, yAxisID: 'y' },
+                        { label: `Humidity (%)`, data: history.map(h => h.humid), borderColor: '#06b6d4', borderDash: [5, 5], tension: 0.1, fill: false, pointRadius: 0, yAxisID: 'y1' }
                     ]
                 },
                 options: {
@@ -265,8 +232,8 @@
                     maintainAspectRatio: false,
                     plugins: { legend: { display: true, position: 'bottom' } },
                     scales: { 
-                        y: { type: 'linear', position: 'left', beginAtZero: false, title: { display: true, text: 'Temp (°C)' } },
-                        y1: { type: 'linear', position: 'right', grid: { display: false }, title: { display: true, text: 'Humidity (%)' } }
+                        y: { position: 'left', beginAtZero: false },
+                        y1: { position: 'right', grid: { display: false } }
                     }
                 }
             });
