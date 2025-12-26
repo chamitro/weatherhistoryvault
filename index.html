@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weather History Vault - 20 Year Analysis</title>
+    <title>Weather History Vault - Climate & Pollution</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -12,7 +12,7 @@
     <div class="max-w-6xl mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
             <h1 class="text-4xl font-extrabold text-indigo-900 tracking-tight">Weather History Vault</h1>
-            <p class="text-slate-500 mt-2 text-lg">20-Year Climate & Humidity Analysis (2005 - 2025)</p>
+            <p class="text-slate-500 mt-2 text-lg">20-Year Climate, Humidity & Air Quality Analysis</p>
         </header>
 
         <div class="flex flex-col md:flex-row gap-4 mb-8 justify-center">
@@ -24,9 +24,9 @@
         </div>
 
         <div id="app-content" class="opacity-0 transition-opacity duration-500">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Today in <span id="loc-name">...</span></h3>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Today's Temp</h3>
                     <p id="today-temp" class="text-4xl font-black text-indigo-600 my-2">--°C</p>
                     <span id="comparison-tag" class="px-3 py-1 rounded-full text-[10px] font-bold"></span>
                 </div>
@@ -37,9 +37,10 @@
                     <span id="humid-label" class="text-[10px] font-bold text-slate-400 uppercase">Daily Mean</span>
                 </div>
 
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">20y Day Avg</h3>
-                    <p id="avg-temp" class="text-4xl font-black text-slate-700 my-2">--°C</p>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center border-b-4 border-amber-500">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Air Quality ($PM_{2.5}$)</h3>
+                    <p id="pollution-val" class="text-4xl font-black text-amber-600 my-2">--</p>
+                    <span id="pollution-tag" class="px-3 py-1 rounded-full text-[10px] font-bold bg-slate-100">Analyzing...</span>
                 </div>
 
                 <div class="bg-emerald-800 p-6 rounded-2xl text-white shadow-lg text-center">
@@ -65,7 +66,7 @@
             </div>
 
             <div class="bg-white p-6 rounded-2xl shadow-sm border-t-4 border-slate-400">
-                <h3 class="text-sm font-bold text-slate-600 uppercase mb-4 tracking-wider text-center">20-Year Annual Averages</h3>
+                <h3 class="text-sm font-bold text-slate-600 uppercase mb-4 tracking-wider text-center">20-Year Climate History</h3>
                 <div id="year-list" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
                 </div>
             </div>
@@ -101,23 +102,38 @@
         async function fetchData(lat, lon) {
             const end = new Date().toISOString().split('T')[0];
             const start = (new Date().getFullYear() - 20) + "-01-01";
-            // Added humidity to the fields
-            const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&daily=temperature_2m_max,temperature_2m_mean,relative_humidity_2m_mean&timezone=auto`;
             
-            const res = await fetch(url);
-            const data = await res.json();
-            processData(data);
+            // Weather & Humidity API
+            const weatherUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&daily=temperature_2m_max,temperature_2m_mean,relative_humidity_2m_mean&timezone=auto`;
+            
+            // Pollution API (PM2.5) - Note: AQ API usually starts from 2022 for high-res but has reanalysis for older dates
+            const pollutionUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=pm2_5&timezone=auto`;
+
+            try {
+                const [weatherRes, pollutionRes] = await Promise.all([
+                    fetch(weatherUrl),
+                    fetch(pollutionUrl)
+                ]);
+                
+                const weatherData = await weatherRes.json();
+                const pollutionData = await pollutionRes.json();
+                
+                processData(weatherData, pollutionData);
+            } catch (e) {
+                console.error(e);
+                alert("Error fetching data ranges.");
+            }
         }
 
-        function processData(data) {
+        function processData(weatherData, pollutionData) {
             const dailyHistory = [];
             const yearlyData = {};
 
-            data.daily.time.forEach((t, i) => {
+            weatherData.daily.time.forEach((t, i) => {
                 const year = t.split('-')[0];
-                const mean = data.daily.temperature_2m_mean[i];
-                const max = data.daily.temperature_2m_max[i];
-                const humid = data.daily.relative_humidity_2m_mean[i];
+                const mean = weatherData.daily.temperature_2m_mean[i];
+                const max = weatherData.daily.temperature_2m_max[i];
+                const humid = weatherData.daily.relative_humidity_2m_mean[i];
 
                 if (!yearlyData[year]) yearlyData[year] = { means: [], humids: [] };
                 if (mean !== null) yearlyData[year].means.push(mean);
@@ -141,7 +157,7 @@
             years.forEach((y, idx) => {
                 const day = findSpringDay(yearlyData[y].means);
                 if (day !== null) {
-                    if (idx < 10) earlySprings.push(day); 
+                    if (idx < 10) earlySprings.push(day);
                     else recentSprings.push(day);
                 }
             });
@@ -150,14 +166,17 @@
             const avgRecent = recentSprings.length ? recentSprings.reduce((a,b)=>a+b, 0) / recentSprings.length : 0;
             const shift = avgEarly - avgRecent;
             const shiftEl = document.getElementById('spring-shift');
-            
-            if (earlySprings.length && recentSprings.length) {
-                shiftEl.innerText = shift > 0 ? `${shift.toFixed(1)} Days Earlier` : `${Math.abs(shift).toFixed(1)} Days Later`;
-            } else {
-                shiftEl.innerText = "N/A";
-            }
+            shiftEl.innerText = (earlySprings.length && recentSprings.length) ? (shift > 0 ? `${shift.toFixed(1)} Days Earlier` : `${Math.abs(shift).toFixed(1)} Days Later`) : "N/A";
 
-            // 2. Annual Average List injection (Including Humidity)
+            // 2. Pollution UI
+            const pm25 = pollutionData.current.pm2_5;
+            document.getElementById('pollution-val').innerText = pm25.toFixed(1);
+            const pTag = document.getElementById('pollution-tag');
+            if (pm25 < 12) { pTag.innerText = "CLEAN"; pTag.className = "px-3 py-1 rounded-full text-[10px] font-bold bg-green-100 text-green-600"; }
+            else if (pm25 < 35) { pTag.innerText = "FAIR"; pTag.className = "px-3 py-1 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-700"; }
+            else { pTag.innerText = "POOR"; pTag.className = "px-3 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-600"; }
+
+            // 3. Annual Grid
             const yearList = document.getElementById('year-list');
             yearList.innerHTML = '';
             [...years].reverse().forEach(y => {
@@ -171,13 +190,11 @@
                     </div>`;
             });
 
-            // 3. UI Stats
+            // 4. Weather Stats
             const latest = dailyHistory[dailyHistory.length-1];
             const avgTemp = dailyHistory.reduce((a,b)=>a+b.temp, 0) / dailyHistory.length;
-            
             document.getElementById('today-temp').innerText = `${latest.temp.toFixed(1)}°C`;
             document.getElementById('today-humid').innerText = `${Math.round(latest.humid)}%`;
-            document.getElementById('avg-temp').innerText = `${avgTemp.toFixed(1)}°C`;
             
             const growth = ((latest.temp - avgTemp) / avgTemp) * 100;
             const tag = document.getElementById('comparison-tag');
@@ -197,35 +214,16 @@
                 data: {
                     labels: history.map(h => h.year),
                     datasets: [
-                        {
-                            label: `Temp (°C)`,
-                            data: history.map(h => h.temp),
-                            borderColor: '#4f46e5',
-                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                            tension: 0.3,
-                            fill: true,
-                            pointRadius: 4,
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: `Humidity (%)`,
-                            data: history.map(h => h.humid),
-                            borderColor: '#06b6d4',
-                            borderDash: [5, 5],
-                            tension: 0.3,
-                            fill: false,
-                            pointRadius: 0,
-                            yAxisID: 'y1'
-                        }
+                        { label: `Temp (°C)`, data: history.map(h => h.temp), borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', tension: 0.3, fill: true, yAxisID: 'y' },
+                        { label: `Humidity (%)`, data: history.map(h => h.humid), borderColor: '#06b6d4', borderDash: [5, 5], tension: 0.3, fill: false, yAxisID: 'y1' }
                     ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: true, position: 'bottom' } },
                     scales: { 
-                        y: { type: 'linear', position: 'left', beginAtZero: false, title: { display: true, text: 'Temp (°C)' } },
-                        y1: { type: 'linear', position: 'right', grid: { display: false }, title: { display: true, text: 'Humidity (%)' } }
+                        y: { type: 'linear', position: 'left', beginAtZero: false },
+                        y1: { type: 'linear', position: 'right', grid: { display: false } }
                     }
                 }
             });
