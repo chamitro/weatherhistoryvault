@@ -12,7 +12,7 @@
     <div class="max-w-6xl mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
             <h1 class="text-4xl font-extrabold text-indigo-900 tracking-tight">Weather History Vault</h1>
-            <p class="text-slate-500 mt-2 text-lg">20-Year Climate & Spring Analysis (2005 - 2025)</p>
+            <p class="text-slate-500 mt-2 text-lg">20-Year Climate & Humidity Analysis (2005 - 2025)</p>
         </header>
 
         <div class="flex flex-col md:flex-row gap-4 mb-8 justify-center">
@@ -24,11 +24,17 @@
         </div>
 
         <div id="app-content" class="opacity-0 transition-opacity duration-500">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
                     <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Today in <span id="loc-name">...</span></h3>
                     <p id="today-temp" class="text-4xl font-black text-indigo-600 my-2">--°C</p>
                     <span id="comparison-tag" class="px-3 py-1 rounded-full text-[10px] font-bold"></span>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Humidity</h3>
+                    <p id="today-humid" class="text-4xl font-black text-cyan-600 my-2">--%</p>
+                    <span id="humid-label" class="text-[10px] font-bold text-slate-400 uppercase">Daily Mean</span>
                 </div>
 
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
@@ -39,19 +45,19 @@
                 <div class="bg-emerald-800 p-6 rounded-2xl text-white shadow-lg text-center">
                     <h3 class="text-emerald-300 text-xs font-bold uppercase tracking-widest mb-1">Spring Arrival</h3>
                     <p id="spring-shift" class="text-3xl font-bold">--</p>
-                    <p class="text-[10px] text-emerald-200 mt-1">Shift in first 15°C week (Recent decade vs previous)</p>
+                    <p class="text-[10px] text-emerald-200 mt-1">Shift in first 15°C week</p>
                 </div>
 
                 <div class="bg-indigo-900 p-6 rounded-2xl text-white shadow-lg text-center">
                     <h3 class="text-indigo-300 text-xs font-bold uppercase tracking-widest mb-1">Growth Index</h3>
                     <p id="growth-rate" class="text-3xl font-bold">--%</p>
-                    <p class="text-[10px] text-indigo-200 mt-1">Today vs 20y Historical Day Avg</p>
+                    <p class="text-[10px] text-indigo-200 mt-1">Today vs History</p>
                 </div>
             </div>
 
             <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 mb-8">
                 <h3 class="text-center font-bold text-slate-700 mb-4 uppercase text-sm tracking-wide">
-                    Max Temp on <span id="chart-date-label">this day</span> (2005-2025)
+                    Max Temp & Humidity on <span id="chart-date-label">this day</span> (2005-2025)
                 </h3>
                 <div class="relative h-[350px]">
                     <canvas id="historyChart"></canvas>
@@ -61,7 +67,7 @@
             <div class="bg-white p-6 rounded-2xl shadow-sm border-t-4 border-slate-400">
                 <h3 class="text-sm font-bold text-slate-600 uppercase mb-4 tracking-wider text-center">20-Year Annual Averages</h3>
                 <div id="year-list" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -95,7 +101,8 @@
         async function fetchData(lat, lon) {
             const end = new Date().toISOString().split('T')[0];
             const start = (new Date().getFullYear() - 20) + "-01-01";
-            const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&daily=temperature_2m_max,temperature_2m_mean&timezone=auto`;
+            // Added humidity to the fields
+            const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&daily=temperature_2m_max,temperature_2m_mean,relative_humidity_2m_mean&timezone=auto`;
             
             const res = await fetch(url);
             const data = await res.json();
@@ -110,16 +117,18 @@
                 const year = t.split('-')[0];
                 const mean = data.daily.temperature_2m_mean[i];
                 const max = data.daily.temperature_2m_max[i];
+                const humid = data.daily.relative_humidity_2m_mean[i];
 
-                if (!yearlyData[year]) yearlyData[year] = { means: [] };
+                if (!yearlyData[year]) yearlyData[year] = { means: [], humids: [] };
                 if (mean !== null) yearlyData[year].means.push(mean);
+                if (humid !== null) yearlyData[year].humids.push(humid);
 
-                if (t.endsWith(monthDay)) dailyHistory.push({ year, temp: max });
+                if (t.endsWith(monthDay)) dailyHistory.push({ year, temp: max, humid: humid });
             });
 
-            // 1. Spring Calculation (Comparing first 10 years vs last 10 years)
+            // 1. Spring Calculation
             const findSpringDay = (means) => {
-                for(let i=0; i<180; i++) { // Search Jan-June
+                for(let i=0; i<180; i++) {
                     if(means[i] > 15 && means[i+1] > 15 && means[i+2] > 15) return i;
                 }
                 return null;
@@ -132,8 +141,8 @@
             years.forEach((y, idx) => {
                 const day = findSpringDay(yearlyData[y].means);
                 if (day !== null) {
-                    if (idx < 10) earlySprings.push(day); // 2005-2014
-                    else recentSprings.push(day);        // 2015-2024
+                    if (idx < 10) earlySprings.push(day); 
+                    else recentSprings.push(day);
                 }
             });
 
@@ -148,25 +157,29 @@
                 shiftEl.innerText = "N/A";
             }
 
-            // 2. Annual Average List injection
+            // 2. Annual Average List injection (Including Humidity)
             const yearList = document.getElementById('year-list');
             yearList.innerHTML = '';
             [...years].reverse().forEach(y => {
                 const yearAvg = yearlyData[y].means.reduce((a,b)=>a+b, 0) / yearlyData[y].means.length;
+                const yearHumid = yearlyData[y].humids.reduce((a,b)=>a+b, 0) / yearlyData[y].humids.length;
                 yearList.innerHTML += `
                     <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
                         <div class="text-[10px] font-bold text-slate-400 uppercase">${y}</div>
                         <div class="text-lg font-black text-slate-700">${yearAvg.toFixed(1)}°C</div>
+                        <div class="text-[10px] font-bold text-cyan-600">${Math.round(yearHumid)}% HUMID</div>
                     </div>`;
             });
 
-            // 3. UI Stats (Today vs 20y Avg)
-            const latest = dailyHistory[dailyHistory.length-1].temp;
-            const avg = dailyHistory.reduce((a,b)=>a+b.temp, 0) / dailyHistory.length;
-            document.getElementById('today-temp').innerText = `${latest.toFixed(1)}°C`;
-            document.getElementById('avg-temp').innerText = `${avg.toFixed(1)}°C`;
+            // 3. UI Stats
+            const latest = dailyHistory[dailyHistory.length-1];
+            const avgTemp = dailyHistory.reduce((a,b)=>a+b.temp, 0) / dailyHistory.length;
             
-            const growth = ((latest - avg) / avg) * 100;
+            document.getElementById('today-temp').innerText = `${latest.temp.toFixed(1)}°C`;
+            document.getElementById('today-humid').innerText = `${Math.round(latest.humid)}%`;
+            document.getElementById('avg-temp').innerText = `${avgTemp.toFixed(1)}°C`;
+            
+            const growth = ((latest.temp - avgTemp) / avgTemp) * 100;
             const tag = document.getElementById('comparison-tag');
             tag.innerText = growth > 0 ? "ABOVE AVERAGE" : "BELOW AVERAGE";
             tag.className = `px-3 py-1 rounded-full text-[10px] font-bold ${growth > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
@@ -183,24 +196,36 @@
                 type: 'line',
                 data: {
                     labels: history.map(h => h.year),
-                    datasets: [{
-                        label: `Temp on ${formattedDate} (°C)`,
-                        data: history.map(h => h.temp),
-                        borderColor: '#4f46e5',
-                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                        tension: 0.3,
-                        fill: true,
-                        pointRadius: 4,
-                        pointBackgroundColor: '#4f46e5'
-                    }]
+                    datasets: [
+                        {
+                            label: `Temp (°C)`,
+                            data: history.map(h => h.temp),
+                            borderColor: '#4f46e5',
+                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: 4,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: `Humidity (%)`,
+                            data: history.map(h => h.humid),
+                            borderColor: '#06b6d4',
+                            borderDash: [5, 5],
+                            tension: 0.3,
+                            fill: false,
+                            pointRadius: 0,
+                            yAxisID: 'y1'
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    plugins: { legend: { display: true, position: 'bottom' } },
                     scales: { 
-                        y: { beginAtZero: false, grid: { color: '#f1f5f9' } }, 
-                        x: { grid: { display: false } } 
+                        y: { type: 'linear', position: 'left', beginAtZero: false, title: { display: true, text: 'Temp (°C)' } },
+                        y1: { type: 'linear', position: 'right', grid: { display: false }, title: { display: true, text: 'Humidity (%)' } }
                     }
                 }
             });
