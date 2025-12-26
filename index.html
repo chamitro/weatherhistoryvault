@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weather History Vault - Complete 10y Analysis</title>
+    <title>Weather History Vault - 20 Year Analysis</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -12,14 +12,14 @@
     <div class="max-w-6xl mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
             <h1 class="text-4xl font-extrabold text-indigo-900 tracking-tight">Weather History Vault</h1>
-            <p class="text-slate-500 mt-2 text-lg">10-Year Climate & Spring Analysis</p>
+            <p class="text-slate-500 mt-2 text-lg">20-Year Climate & Spring Analysis (2005 - 2025)</p>
         </header>
 
         <div class="flex flex-col md:flex-row gap-4 mb-8 justify-center">
             <input type="text" id="cityInput" placeholder="Enter city (e.g. Athens, Berlin)" 
                    class="px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none w-full md:w-96 shadow-sm">
             <button onclick="searchCity()" id="searchBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-lg font-semibold transition-all shadow-md">
-                Analyze 10 Years
+                Analyze 20 Years
             </button>
         </div>
 
@@ -32,35 +32,35 @@
                 </div>
 
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">10y Day Avg</h3>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">20y Day Avg</h3>
                     <p id="avg-temp" class="text-4xl font-black text-slate-700 my-2">--°C</p>
                 </div>
 
                 <div class="bg-emerald-800 p-6 rounded-2xl text-white shadow-lg text-center">
                     <h3 class="text-emerald-300 text-xs font-bold uppercase tracking-widest mb-1">Spring Arrival</h3>
                     <p id="spring-shift" class="text-3xl font-bold">--</p>
-                    <p class="text-[10px] text-emerald-200 mt-1">Shift in first 15°C week (Recent vs 5yrs ago)</p>
+                    <p class="text-[10px] text-emerald-200 mt-1">Shift in first 15°C week (Recent decade vs previous)</p>
                 </div>
 
                 <div class="bg-indigo-900 p-6 rounded-2xl text-white shadow-lg text-center">
                     <h3 class="text-indigo-300 text-xs font-bold uppercase tracking-widest mb-1">Growth Index</h3>
                     <p id="growth-rate" class="text-3xl font-bold">--%</p>
-                    <p class="text-[10px] text-indigo-200 mt-1">Today vs 10y Historical Day Avg</p>
+                    <p class="text-[10px] text-indigo-200 mt-1">Today vs 20y Historical Day Avg</p>
                 </div>
             </div>
 
             <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 mb-8">
                 <h3 class="text-center font-bold text-slate-700 mb-4 uppercase text-sm tracking-wide">
-                    Max Temp on <span id="chart-date-label">this day</span> (2015-2024)
+                    Max Temp on <span id="chart-date-label">this day</span> (2005-2025)
                 </h3>
-                <div class="relative h-[300px]">
+                <div class="relative h-[350px]">
                     <canvas id="historyChart"></canvas>
                 </div>
             </div>
 
             <div class="bg-white p-6 rounded-2xl shadow-sm border-t-4 border-slate-400">
-                <h3 class="text-sm font-bold text-slate-600 uppercase mb-4 tracking-wider text-center">Annual Average Temperature (Full Year)</h3>
-                <div id="year-list" class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <h3 class="text-sm font-bold text-slate-600 uppercase mb-4 tracking-wider text-center">20-Year Annual Averages</h3>
+                <div id="year-list" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
                     </div>
             </div>
         </div>
@@ -78,7 +78,7 @@
             if (!city) return alert("Please enter a city");
             const btn = document.getElementById('searchBtn');
             btn.disabled = true;
-            btn.innerText = 'Analyzing...';
+            btn.innerText = 'Analyzing 20 Years...';
 
             try {
                 const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
@@ -89,12 +89,12 @@
                     await fetchData(latitude, longitude);
                 } else { alert("City not found"); }
             } catch (e) { alert("Error connecting to API"); }
-            finally { btn.disabled = false; btn.innerText = 'Analyze 10 Years'; }
+            finally { btn.disabled = false; btn.innerText = 'Analyze 20 Years'; }
         }
 
         async function fetchData(lat, lon) {
             const end = new Date().toISOString().split('T')[0];
-            const start = (new Date().getFullYear() - 10) + "-01-01";
+            const start = (new Date().getFullYear() - 20) + "-01-01";
             const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&daily=temperature_2m_max,temperature_2m_mean&timezone=auto`;
             
             const res = await fetch(url);
@@ -117,9 +117,9 @@
                 if (t.endsWith(monthDay)) dailyHistory.push({ year, temp: max });
             });
 
-            // 1. Spring Calculation
+            // 1. Spring Calculation (Comparing first 10 years vs last 10 years)
             const findSpringDay = (means) => {
-                for(let i=0; i<180; i++) {
+                for(let i=0; i<180; i++) { // Search Jan-June
                     if(means[i] > 15 && means[i+1] > 15 && means[i+2] > 15) return i;
                 }
                 return null;
@@ -132,16 +132,21 @@
             years.forEach((y, idx) => {
                 const day = findSpringDay(yearlyData[y].means);
                 if (day !== null) {
-                    if (idx < 5) earlySprings.push(day); 
-                    else recentSprings.push(day);        
+                    if (idx < 10) earlySprings.push(day); // 2005-2014
+                    else recentSprings.push(day);        // 2015-2024
                 }
             });
 
-            const avgEarly = earlySprings.reduce((a,b)=>a+b, 0) / earlySprings.length;
-            const avgRecent = recentSprings.reduce((a,b)=>a+b, 0) / recentSprings.length;
+            const avgEarly = earlySprings.length ? earlySprings.reduce((a,b)=>a+b, 0) / earlySprings.length : 0;
+            const avgRecent = recentSprings.length ? recentSprings.reduce((a,b)=>a+b, 0) / recentSprings.length : 0;
             const shift = avgEarly - avgRecent;
             const shiftEl = document.getElementById('spring-shift');
-            shiftEl.innerText = !isNaN(shift) ? (shift > 0 ? `${shift.toFixed(1)} Days Earlier` : `${Math.abs(shift).toFixed(1)} Days Later`) : "N/A";
+            
+            if (earlySprings.length && recentSprings.length) {
+                shiftEl.innerText = shift > 0 ? `${shift.toFixed(1)} Days Earlier` : `${Math.abs(shift).toFixed(1)} Days Later`;
+            } else {
+                shiftEl.innerText = "N/A";
+            }
 
             // 2. Annual Average List injection
             const yearList = document.getElementById('year-list');
@@ -155,7 +160,7 @@
                     </div>`;
             });
 
-            // 3. UI Stats (Today vs Avg)
+            // 3. UI Stats (Today vs 20y Avg)
             const latest = dailyHistory[dailyHistory.length-1].temp;
             const avg = dailyHistory.reduce((a,b)=>a+b.temp, 0) / dailyHistory.length;
             document.getElementById('today-temp').innerText = `${latest.toFixed(1)}°C`;
@@ -185,6 +190,7 @@
                         backgroundColor: 'rgba(79, 70, 229, 0.1)',
                         tension: 0.3,
                         fill: true,
+                        pointRadius: 4,
                         pointBackgroundColor: '#4f46e5'
                     }]
                 },
@@ -192,7 +198,10 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: false, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } }
+                    scales: { 
+                        y: { beginAtZero: false, grid: { color: '#f1f5f9' } }, 
+                        x: { grid: { display: false } } 
+                    }
                 }
             });
         }
