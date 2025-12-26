@@ -12,7 +12,7 @@
     <div class="max-w-7xl mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
             <h1 class="text-4xl font-extrabold text-indigo-900 tracking-tight">Weather History Vault</h1>
-            <p class="text-slate-500 mt-2 text-lg">20-Year Climate, Humidity & Air Quality (2005 - 2025)</p>
+            <p class="text-slate-500 mt-2 text-lg">20-Year Climate, Humidity & Pollution Trends</p>
         </header>
 
         <div class="flex flex-col md:flex-row gap-4 mb-8 justify-center">
@@ -37,10 +37,10 @@
                     <span class="text-[10px] font-bold text-slate-400 uppercase">Daily Mean</span>
                 </div>
 
-                <div id="pollution-card" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center transition-colors duration-500">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Air Pollution</h3>
+                <div id="pollution-card" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center transition-all duration-500">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Air Quality</h3>
                     <p id="pollution-val" class="text-3xl font-black my-2">--</p>
-                    <span id="pollution-comparison" class="px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-tighter">Analyzing...</span>
+                    <span id="pollution-comparison" class="px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-tighter">WHO Guideline</span>
                 </div>
 
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
@@ -51,19 +51,19 @@
                 <div class="bg-emerald-800 p-6 rounded-2xl text-white shadow-lg text-center">
                     <h3 class="text-emerald-300 text-xs font-bold uppercase tracking-widest mb-1">Spring Arrival</h3>
                     <p id="spring-shift" class="text-2xl font-bold">--</p>
-                    <p class="text-[10px] text-emerald-200 mt-1">First 15°C Week Shift</p>
+                    <p class="text-[10px] text-emerald-200 mt-1">2005 vs 2024 Shift</p>
                 </div>
 
                 <div class="bg-indigo-900 p-6 rounded-2xl text-white shadow-lg text-center">
                     <h3 class="text-indigo-300 text-xs font-bold uppercase tracking-widest mb-1">Growth Index</h3>
                     <p id="growth-rate" class="text-2xl font-bold">--%</p>
-                    <p class="text-[10px] text-indigo-200 mt-1">Today vs History</p>
+                    <p class="text-[10px] text-indigo-200 mt-1">Temp Deviation</p>
                 </div>
             </div>
 
             <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 mb-8">
                 <h3 class="text-center font-bold text-slate-700 mb-4 uppercase text-sm tracking-wide">
-                    Max Temp & Humidity on <span id="chart-date-label">this day</span> (2005-2025)
+                    20-Year Trend on <span id="chart-date-label">this day</span>
                 </h3>
                 <div class="relative h-[350px]">
                     <canvas id="historyChart"></canvas>
@@ -71,9 +71,8 @@
             </div>
 
             <div class="bg-white p-6 rounded-2xl shadow-sm border-t-4 border-slate-400">
-                <h3 class="text-sm font-bold text-slate-600 uppercase mb-4 tracking-wider text-center">20-Year Annual Averages</h3>
-                <div id="year-list" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                </div>
+                <h3 class="text-sm font-bold text-slate-600 uppercase mb-4 tracking-wider text-center">Annual Climate & Pollution Log</h3>
+                <div id="year-list" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3"></div>
             </div>
         </div>
     </div>
@@ -90,7 +89,7 @@
             if (!city) return alert("Please enter a city");
             const btn = document.getElementById('searchBtn');
             btn.disabled = true;
-            btn.innerText = 'Analyzing 20 Years...';
+            btn.innerText = 'Analyzing...';
 
             try {
                 const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
@@ -108,12 +107,14 @@
             const end = new Date().toISOString().split('T')[0];
             const start = (new Date().getFullYear() - 20) + "-01-01";
             
-            const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&daily=temperature_2m_max,temperature_2m_mean,relative_humidity_2m_mean&timezone=auto`;
-            const pollutionUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=pm2_5`;
+            const weatherUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&daily=temperature_2m_max,temperature_2m_mean,relative_humidity_2m_mean&timezone=auto`;
+            
+            // Fetching Air Quality current and historical estimation
+            const pollutionUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=pm2_5&hourly=pm2_5&start_date=${start}&end_date=${end}`;
 
             try {
                 const [weatherRes, pollutionRes] = await Promise.all([
-                    fetch(url).then(r => r.json()),
+                    fetch(weatherUrl).then(r => r.json()),
                     fetch(pollutionUrl).then(r => r.json()).catch(() => null)
                 ]);
 
@@ -126,6 +127,19 @@
         function processData(data, pollutionData) {
             const dailyHistory = [];
             const yearlyData = {};
+
+            // Map pollution by year if available
+            const pollutionByYear = {};
+            if (pollutionData && pollutionData.hourly) {
+                pollutionData.hourly.time.forEach((t, i) => {
+                    const yr = t.split('-')[0];
+                    if (!pollutionByYear[yr]) pollutionByYear[yr] = { sum: 0, count: 0 };
+                    if (pollutionData.hourly.pm2_5[i]) {
+                        pollutionByYear[yr].sum += pollutionData.hourly.pm2_5[i];
+                        pollutionByYear[yr].count++;
+                    }
+                });
+            }
 
             data.daily.time.forEach((t, i) => {
                 const year = t.split('-')[0];
@@ -163,67 +177,57 @@
             const avgEarly = earlySprings.length ? earlySprings.reduce((a,b)=>a+b, 0) / earlySprings.length : 0;
             const avgRecent = recentSprings.length ? recentSprings.reduce((a,b)=>a+b, 0) / recentSprings.length : 0;
             const shift = avgEarly - avgRecent;
-            const shiftEl = document.getElementById('spring-shift');
-            
-            if (earlySprings.length && recentSprings.length) {
-                shiftEl.innerText = shift > 0 ? `${shift.toFixed(1)} Days Earlier` : `${Math.abs(shift).toFixed(1)} Days Later`;
-            } else {
-                shiftEl.innerText = "N/A";
-            }
+            document.getElementById('spring-shift').innerText = (earlySprings.length && recentSprings.length) ? (shift > 0 ? `${shift.toFixed(1)} Days Earlier` : `${Math.abs(shift).toFixed(1)} Days Later`) : "N/A";
 
-            // 2. Pollution Comparison Logic
-            const pollVal = document.getElementById('pollution-val');
-            const pollComp = document.getElementById('pollution-comparison');
-            const pollCard = document.getElementById('pollution-card');
+            // 2. Main Stats
+            const latest = dailyHistory[dailyHistory.length-1];
+            document.getElementById('today-temp').innerText = `${latest.temp.toFixed(1)}°C`;
+            document.getElementById('today-humid').innerText = `${Math.round(latest.humid)}%`;
             
+            const avgTemp = dailyHistory.reduce((a,b)=>a+b.temp, 0) / dailyHistory.length;
+            document.getElementById('avg-temp').innerText = `${avgTemp.toFixed(1)}°C`;
+
+            const growth = ((latest.temp - avgTemp) / avgTemp) * 100;
+            document.getElementById('growth-rate').innerText = `${growth > 0 ? '+' : ''}${growth.toFixed(1)}%`;
+            const tag = document.getElementById('comparison-tag');
+            tag.innerText = growth > 0 ? "ABOVE AVERAGE" : "BELOW AVERAGE";
+            tag.className = `px-3 py-1 rounded-full text-[10px] font-bold ${growth > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
+
+            // 3. Pollution Header Logic
             if (pollutionData && pollutionData.current) {
                 const val = pollutionData.current.pm2_5;
-                const whoLimit = 5; // WHO annual limit for PM2.5 is 5 μg/m³
-                pollVal.innerText = val.toFixed(1);
-                pollVal.classList.add('text-slate-800');
-
-                if (val <= whoLimit) {
-                    pollComp.innerText = "Within Safety Limit";
-                    pollComp.className = "px-2 py-1 rounded-md text-[9px] font-black uppercase bg-green-100 text-green-600";
-                    pollCard.classList.add('border-b-4', 'border-green-500');
-                } else {
-                    const times = (val / whoLimit).toFixed(1);
-                    pollComp.innerText = `${times}x Above Safety Limit`;
-                    pollComp.className = `px-2 py-1 rounded-md text-[9px] font-black uppercase ${val > 35 ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-700'}`;
-                    pollCard.classList.add('border-b-4', val > 35 ? 'border-red-500' : 'border-yellow-500');
-                }
-            } else {
-                pollVal.innerText = "N/A";
-                pollComp.innerText = "No Data Available";
+                document.getElementById('pollution-val').innerText = val.toFixed(1);
+                const comp = document.getElementById('pollution-comparison');
+                const card = document.getElementById('pollution-card');
+                const times = (val / 5).toFixed(1);
+                comp.innerText = val <= 5 ? "Within Safe Limits" : `${times}x WHO Limit`;
+                comp.className = `px-2 py-1 rounded-md text-[9px] font-black uppercase ${val > 25 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`;
+                card.style.borderBottom = `4px solid ${val > 25 ? '#ef4444' : '#22c55e'}`;
             }
 
-            // 3. Annual Average List injection
+            // 4. Yearly List with Pollution Indicator
             const yearList = document.getElementById('year-list');
             yearList.innerHTML = '';
             [...years].reverse().forEach(y => {
                 const yearAvg = yearlyData[y].means.reduce((a,b)=>a+b, 0) / yearlyData[y].means.length;
                 const yearHumid = yearlyData[y].humids.reduce((a,b)=>a+b, 0) / yearlyData[y].humids.length;
+                
+                let pollColor = 'bg-slate-300'; // Default if no data
+                if (pollutionByYear[y] && pollutionByYear[y].count > 0) {
+                    const avgP = pollutionByYear[y].sum / pollutionByYear[y].count;
+                    if (avgP < 10) pollColor = 'bg-green-500';
+                    else if (avgP < 25) pollColor = 'bg-yellow-500';
+                    else pollColor = 'bg-red-500';
+                }
+
                 yearList.innerHTML += `
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 text-center relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-3 h-3 ${pollColor} rounded-bl-lg" title="Air Quality Indicator"></div>
                         <div class="text-[10px] font-bold text-slate-400 uppercase">${y}</div>
                         <div class="text-lg font-black text-slate-700">${yearAvg.toFixed(1)}°C</div>
                         <div class="text-[10px] font-bold text-cyan-600">${Math.round(yearHumid)}% HUMID</div>
                     </div>`;
             });
-
-            // 4. UI Stats
-            const latest = dailyHistory[dailyHistory.length-1];
-            const avgTemp = dailyHistory.reduce((a,b)=>a+b.temp, 0) / dailyHistory.length;
-            
-            document.getElementById('today-temp').innerText = `${latest.temp.toFixed(1)}°C`;
-            document.getElementById('today-humid').innerText = `${Math.round(latest.humid)}%`;
-            document.getElementById('avg-temp').innerText = `${avgTemp.toFixed(1)}°C`;
-            
-            const growth = ((latest.temp - avgTemp) / avgTemp) * 100;
-            const tag = document.getElementById('comparison-tag');
-            tag.innerText = growth > 0 ? "ABOVE AVERAGE" : "BELOW AVERAGE";
-            tag.className = `px-3 py-1 rounded-full text-[10px] font-bold ${growth > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
-            document.getElementById('growth-rate').innerText = `${growth > 0 ? '+' : ''}${growth.toFixed(1)}%`;
 
             renderChart(dailyHistory);
             document.getElementById('app-content').classList.remove('opacity-0');
@@ -237,35 +241,16 @@
                 data: {
                     labels: history.map(h => h.year),
                     datasets: [
-                        {
-                            label: `Temp (°C)`,
-                            data: history.map(h => h.temp),
-                            borderColor: '#4f46e5',
-                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                            tension: 0.3,
-                            fill: true,
-                            pointRadius: 4,
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: `Humidity (%)`,
-                            data: history.map(h => h.humid),
-                            borderColor: '#06b6d4',
-                            borderDash: [5, 5],
-                            tension: 0.3,
-                            fill: false,
-                            pointRadius: 0,
-                            yAxisID: 'y1'
-                        }
+                        { label: 'Temp (°C)', data: history.map(h => h.temp), borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', tension: 0.3, fill: true, yAxisID: 'y' },
+                        { label: 'Humidity (%)', data: history.map(h => h.humid), borderColor: '#06b6d4', borderDash: [5, 5], tension: 0.3, fill: false, yAxisID: 'y1' }
                     ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: true, position: 'bottom' } },
                     scales: { 
-                        y: { type: 'linear', position: 'left', beginAtZero: false, title: { display: true, text: 'Temp (°C)' } },
-                        y1: { type: 'linear', position: 'right', grid: { display: false }, title: { display: true, text: 'Humidity (%)' } }
+                        y: { position: 'left', beginAtZero: false },
+                        y1: { position: 'right', grid: { display: false } }
                     }
                 }
             });
