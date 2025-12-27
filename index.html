@@ -13,6 +13,10 @@
         <header class="text-center mb-8">
             <h1 class="text-4xl font-extrabold text-indigo-900 tracking-tight">Weather History Vault</h1>
             <p class="text-slate-500 mt-2 text-lg">50-Year Climate, Humidity & Air Quality (1975 - 2025)</p>
+            <div class="mt-4 inline-flex items-center gap-2 bg-indigo-50 border border-indigo-100 px-4 py-1.5 rounded-full text-indigo-700 text-xs font-semibold shadow-sm">
+                <span class="flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                Calendar-Day Archive: Same Date Analysis
+            </div>
         </header>
 
         <div class="flex flex-col md:flex-row gap-4 mb-8 justify-center">
@@ -27,27 +31,35 @@
             
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 
-                <div class="bg-white rounded-2xl shadow-md border-2 border-indigo-100 flex overflow-hidden min-h-[160px]">
-                    <div class="flex-1 p-6 text-center border-r border-slate-100 bg-gradient-to-b from-white to-indigo-50/30">
-                        <h3 class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Today's Temp</h3>
+                <div class="bg-white rounded-2xl shadow-md border-2 border-indigo-100 flex overflow-hidden min-h-[160px] relative">
+                    <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-slate-100 px-2 py-0.5 rounded text-[8px] font-bold text-slate-500 uppercase tracking-tighter z-10">
+                        Date-Matched Archive (1975-2025)
+                    </div>
+                    
+                    <div class="flex-1 p-6 text-center border-r border-slate-100 bg-gradient-to-b from-white to-indigo-50/30 pt-8">
+                        <h3 class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Today's High</h3>
                         <p id="today-temp" class="text-5xl font-black text-indigo-600 my-2">--°C</p>
                         <span id="comparison-tag" class="px-3 py-1 rounded-full text-[10px] font-bold inline-block mt-1">--</span>
                     </div>
-                    <div class="flex-1 p-6 text-center bg-white">
-                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">50y Temp Avg</h3>
+                    <div class="flex-1 p-6 text-center bg-white pt-8">
+                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">50y Day Avg</h3>
                         <p id="avg-temp" class="text-5xl font-black text-slate-700 my-2">--°C</p>
                         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">In <span id="loc-name-temp" class="text-indigo-600">...</span></span>
                     </div>
                 </div>
 
-                <div class="bg-white rounded-2xl shadow-md border-2 border-cyan-100 flex overflow-hidden min-h-[160px]">
-                    <div class="flex-1 p-6 text-center border-r border-slate-100 bg-gradient-to-b from-white to-cyan-50/30">
+                <div class="bg-white rounded-2xl shadow-md border-2 border-cyan-100 flex overflow-hidden min-h-[160px] relative">
+                    <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-slate-100 px-2 py-0.5 rounded text-[8px] font-bold text-slate-500 uppercase tracking-tighter z-10">
+                        Date-Matched Archive (1975-2025)
+                    </div>
+
+                    <div class="flex-1 p-6 text-center border-r border-slate-100 bg-gradient-to-b from-white to-cyan-50/30 pt-8">
                         <h3 class="text-[10px] font-bold text-cyan-500 uppercase tracking-widest mb-1">Today's Humidity</h3>
                         <p id="today-humid" class="text-5xl font-black text-cyan-600 my-2">--%</p>
                         <span id="humid-trend" class="px-3 py-1 rounded-full text-[10px] font-bold inline-block mt-1">--</span>
                     </div>
-                    <div class="flex-1 p-6 text-center bg-white">
-                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">50y Humid Avg</h3>
+                    <div class="flex-1 p-6 text-center bg-white pt-8">
+                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">50y Day Avg</h3>
                         <p id="avg-humid-val" class="text-5xl font-black text-slate-700 my-2">--%</p>
                         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Historical Norm</span>
                     </div>
@@ -68,29 +80,33 @@
                 </div>
 
                 <div class="bg-orange-600 p-6 rounded-2xl text-white shadow-lg text-center">
-                    <h3 class="text-orange-200 text-xs font-bold uppercase tracking-widest mb-1">Extreme Heat</h3>
+                    <h3 class="text-orange-200 text-xs font-bold uppercase tracking-widest mb-1">Extreme Days</h3>
                     <p id="extreme-days" class="text-2xl font-bold">--</p>
-                    <p id="extreme-label" class="text-[9px] text-orange-100 mt-1 uppercase">30°C+ Frequency</p>
+                    <p id="extreme-label" class="text-[9px] text-orange-100 mt-1 uppercase">30°C+ Over 50y</p>
                 </div>
 
                 <div class="bg-blue-900 p-6 rounded-2xl text-white shadow-lg text-center border-b-4 border-blue-400">
-                    <h3 class="text-blue-200 text-xs font-bold uppercase tracking-widest mb-1">Historical Frost</h3>
+                    <h3 class="text-blue-200 text-xs font-bold uppercase tracking-widest mb-1">Freezing Days</h3>
                     <p id="freezing-days" class="text-2xl font-bold">--</p>
-                    <p id="freezing-label" class="text-[9px] text-blue-100 mt-1 uppercase">Sub-zero Frequency</p>
+                    <p id="freezing-label" class="text-[9px] text-blue-100 mt-1 uppercase">Sub-zero Over 50y</p>
                 </div>
             </div>
 
             <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 mb-8">
                 <h3 class="text-center font-bold text-slate-700 mb-4 uppercase text-sm tracking-wide">
-                    Historical Trends for <span id="chart-date-label">this day</span> (1975-2025)
+                    Historical Record for <span id="chart-date-label">this day</span> (1975-2025)
                 </h3>
                 <div class="relative h-[350px]">
                     <canvas id="historyChart"></canvas>
                 </div>
             </div>
 
+            <div class="bg-slate-200/50 rounded-xl p-4 mb-8 text-[11px] text-slate-600 leading-relaxed text-center italic">
+                <strong>Data Note:</strong> All averages shown above are <strong>calendar-specific</strong>. The 50y average represents the mean value for every <span class="current-date-text font-bold">...</span> across the historical archive. This provides a precise comparison of today's conditions against identical dates in the past, rather than general monthly trends.
+            </div>
+
             <div class="bg-white p-6 rounded-2xl shadow-sm border-t-4 border-slate-400">
-                <h3 class="text-sm font-bold text-slate-600 uppercase mb-4 tracking-wider text-center">50-Year Annual Averages</h3>
+                <h3 class="text-sm font-bold text-slate-600 uppercase mb-4 tracking-wider text-center">Full Year Annual Averages (Mean)</h3>
                 <div id="year-list" class="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-2">
                 </div>
             </div>
@@ -102,20 +118,22 @@
         const today = new Date();
         const monthDay = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         const formattedDate = today.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+        
         document.getElementById('chart-date-label').innerText = formattedDate;
+        document.querySelectorAll('.current-date-text').forEach(el => el.innerText = formattedDate);
 
         async function searchCity() {
             const city = document.getElementById('cityInput').value.trim();
             if (!city) return alert("Please enter a city");
             const btn = document.getElementById('searchBtn');
             btn.disabled = true;
-            btn.innerText = 'Analyzing Archive...';
+            btn.innerText = 'Extracting History...';
 
             try {
                 const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
                 const geoData = await geoRes.json();
                 if (geoData.results?.length > 0) {
-                    const { latitude, longitude, name, country } = geoData.results[0];
+                    const { latitude, longitude, name } = geoData.results[0];
                     document.getElementById('loc-name-temp').innerText = `${name}`;
                     await fetchData(latitude, longitude);
                 } else { alert("City not found"); }
@@ -184,13 +202,13 @@
                     pollComp.className = "px-2 py-1 rounded-md text-[9px] font-black uppercase bg-green-100 text-green-600";
                     pollCard.style.borderBottom = "4px solid #22c55e";
                 } else {
-                    pollComp.innerText = `${(val / 5).toFixed(1)}x Over WHO Limit`;
+                    pollComp.innerText = `${(val / 5).toFixed(1)}x WHO Limit`;
                     pollComp.className = `px-2 py-1 rounded-md text-[9px] font-black uppercase ${val > 35 ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-700'}`;
                     pollCard.style.borderBottom = `4px solid ${val > 35 ? '#ef4444' : '#eab308'}`;
                 }
             } else { pollVal.innerText = "N/A"; pollComp.innerText = "Unavailable"; }
 
-            // 3. Humidity Master Box Logic
+            // 3. Humidity Specific Day Logic
             const latest = dailyHistory[dailyHistory.length-1];
             const avgHumid = dailyHistory.reduce((a, b) => a + (b.humid || 0), 0) / (dailyHistory.length || 1);
             const humidTrend = document.getElementById('humid-trend');
@@ -204,7 +222,7 @@
                 humidTrend.className = `px-3 py-1 rounded-full text-[10px] font-bold inline-block mt-1 ${hDiff > 5 ? 'bg-blue-100 text-blue-600' : (hDiff < -5 ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-500')}`;
             }
 
-            // 4. Comparison Logic (Temp)
+            // 4. Temperature Specific Day Logic
             const avgTemp = dailyHistory.reduce((a,b)=>a+b.temp, 0) / (dailyHistory.length || 1);
             document.getElementById('avg-temp').innerText = `${avgTemp.toFixed(1)}°C`;
             if (latest) {
@@ -215,13 +233,13 @@
                 tag.className = `px-3 py-1 rounded-full text-[10px] font-bold inline-block mt-1 ${diff > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
             }
 
-            // 5. Insights
+            // 5. Threshold Analysis
             const extremeDays = dailyHistory.filter(h => h.temp >= 30).length;
             document.getElementById('extreme-days').innerText = `${extremeDays} Times`;
             const freezingDays = dailyHistory.filter(h => h.temp < 0).length;
             document.getElementById('freezing-days').innerText = `${freezingDays} Times`;
 
-            // 6. Year List
+            // 6. Year List (Annual Means)
             const yearList = document.getElementById('year-list');
             yearList.innerHTML = '';
             const processedAverages = years.map(y => ({ year: y, avg: yearlyData[y].means.reduce((a,b)=>a+b, 0) / (yearlyData[y].means.length || 1) }));
@@ -231,7 +249,7 @@
                 let colorClass = "bg-slate-50 border-slate-100";
                 if (p.avg === maxAvg) colorClass = "bg-red-50 border-red-200 ring-2 ring-red-500 ring-inset";
                 if (p.avg === minAvg) colorClass = "bg-blue-50 border-blue-200 ring-2 ring-blue-500 ring-inset";
-                yearList.innerHTML += `<div class="${colorClass} p-2 rounded-lg border text-center"><div class="text-[9px] font-bold text-slate-400">${p.year}</div><div class="text-sm font-black text-slate-700">${p.avg.toFixed(1)}°</div></div>`;
+                yearList.innerHTML += `<div class="${colorClass} p-2 rounded-lg border text-center transition-transform hover:scale-105"><div class="text-[9px] font-bold text-slate-400">${p.year}</div><div class="text-sm font-black text-slate-700">${p.avg.toFixed(1)}°</div></div>`;
             });
 
             renderChart(dailyHistory);
