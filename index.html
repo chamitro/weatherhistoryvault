@@ -24,29 +24,33 @@
         </div>
 
         <div id="app-content" class="opacity-0 transition-opacity duration-500">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-8">
                 
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Today in <span id="loc-name">...</span></h3>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest text-ellipsis overflow-hidden whitespace-nowrap">Today in <span id="loc-name">...</span></h3>
                     <p id="today-temp" class="text-4xl font-black text-indigo-600 my-2">--°C</p>
-                    <span id="comparison-tag" class="px-3 py-1 rounded-full text-[10px] font-bold"></span>
+                    <span id="comparison-tag" class="px-3 py-1 rounded-full text-[10px] font-bold">--</span>
                 </div>
 
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
                     <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Humidity</h3>
                     <p id="today-humid" class="text-4xl font-black text-cyan-600 my-2">--%</p>
-                    <span class="text-[10px] font-bold text-slate-400 uppercase">Daily Mean</span>
+                    <div id="humid-avg-box" class="flex flex-col items-center">
+                        <span id="avg-humid-val" class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">50y Avg: --%</span>
+                        <span id="humid-trend" class="text-[9px] font-bold mt-1 uppercase"></span>
+                    </div>
                 </div>
 
                 <div id="pollution-card" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center transition-colors duration-500">
                     <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Air Pollution</h3>
                     <p id="pollution-val" class="text-4xl font-black my-2">--</p>
-                    <span id="pollution-comparison" class="px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-tighter">Analyzing...</span>
+                    <span id="pollution-comparison" class="px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-tighter text-ellipsis">Analyzing...</span>
                 </div>
 
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center">
-                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">50y Day Avg</h3>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">50y Temp Avg</h3>
                     <p id="avg-temp" class="text-4xl font-black text-slate-700 my-2">--°C</p>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase">On this date</span>
                 </div>
 
                 <div class="bg-emerald-800 p-6 rounded-2xl text-white shadow-lg text-center">
@@ -178,7 +182,21 @@
                 }
             } else { pollVal.innerText = "N/A"; pollComp.innerText = "No Data Available"; }
 
-            // 3. Temperature Threshold Logic (Heat & Freezing)
+            // 3. Humidity Logic (New 50-Year Average)
+            const latest = dailyHistory[dailyHistory.length-1];
+            const avgHumid = dailyHistory.reduce((a, b) => a + (b.humid || 0), 0) / (dailyHistory.length || 1);
+            document.getElementById('today-humid').innerText = `${latest ? Math.round(latest.humid) : '--'}%`;
+            document.getElementById('avg-humid-val').innerText = `50y Avg: ${Math.round(avgHumid)}%`;
+            
+            const humidTrend = document.getElementById('humid-trend');
+            if (latest) {
+                const hDiff = latest.humid - avgHumid;
+                if (hDiff > 10) { humidTrend.innerText = "📈 Much Humid"; humidTrend.className = "text-[9px] font-bold mt-1 text-blue-600"; }
+                else if (hDiff < -10) { humidTrend.innerText = "📉 Very Dry"; humidTrend.className = "text-[9px] font-bold mt-1 text-orange-600"; }
+                else { humidTrend.innerText = "Stable"; humidTrend.className = "text-[9px] font-bold mt-1 text-slate-400"; }
+            }
+
+            // 4. Temperature Thresholds
             const extremeDays = dailyHistory.filter(h => h.temp >= 30).length;
             document.getElementById('extreme-days').innerText = `${extremeDays} Times`;
             const heatLabel = document.getElementById('extreme-label');
@@ -186,7 +204,6 @@
             else if (extremeDays > 0) heatLabel.innerText = "Occasional extreme heat";
             else heatLabel.innerText = "Historically mild day";
 
-            // New: Freezing Days
             const freezingDays = dailyHistory.filter(h => h.temp < 0).length;
             document.getElementById('freezing-days').innerText = `${freezingDays} Times`;
             const freezeLabel = document.getElementById('freezing-label');
@@ -194,7 +211,7 @@
             else if (freezingDays > 0) freezeLabel.innerText = "Occasional freezing";
             else freezeLabel.innerText = "Historically above freezing";
 
-            // 4. Annual List with Hottest/Coldest Highlighting
+            // 5. Annual List
             const yearList = document.getElementById('year-list');
             yearList.innerHTML = '';
             const processedAverages = years.map(y => ({ year: y, avg: yearlyData[y].means.reduce((a,b)=>a+b, 0) / (yearlyData[y].means.length || 1) }));
@@ -205,7 +222,6 @@
                 let colorClass = "bg-slate-50 border-slate-100";
                 if (p.avg === maxAvg) colorClass = "bg-red-50 border-red-200 ring-2 ring-red-500 ring-inset";
                 if (p.avg === minAvg) colorClass = "bg-blue-50 border-blue-200 ring-2 ring-blue-500 ring-inset";
-                
                 yearList.innerHTML += `
                     <div class="${colorClass} p-2 rounded-lg border text-center transition-transform hover:scale-105">
                         <div class="text-[9px] font-bold text-slate-400 uppercase">${p.year}</div>
@@ -213,11 +229,9 @@
                     </div>`;
             });
 
-            // 5. General UI
-            const latest = dailyHistory[dailyHistory.length-1];
+            // 6. General UI Updates
             const avgTemp = dailyHistory.reduce((a,b)=>a+b.temp, 0) / (dailyHistory.length || 1);
             document.getElementById('today-temp').innerText = `${latest ? latest.temp.toFixed(1) : '--'}°C`;
-            document.getElementById('today-humid').innerText = `${latest ? Math.round(latest.humid) : '--'}%`;
             document.getElementById('avg-temp').innerText = `${avgTemp.toFixed(1)}°C`;
             if (latest) {
                 const diff = (latest.temp - avgTemp).toFixed(1);
@@ -247,8 +261,8 @@
                     maintainAspectRatio: false,
                     plugins: { legend: { display: true, position: 'bottom' } },
                     scales: { 
-                        y: { position: 'left', beginAtZero: false },
-                        y1: { position: 'right', grid: { display: false } }
+                        y: { position: 'left', beginAtZero: false, title: { display: true, text: 'Temp °C', font: { size: 10 } } },
+                        y1: { position: 'right', grid: { display: false }, title: { display: true, text: 'Humidity %', font: { size: 10 } } }
                     }
                 }
             });
