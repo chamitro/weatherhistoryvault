@@ -13,9 +13,13 @@
         <header class="text-center mb-8">
             <h1 class="text-4xl font-extrabold text-indigo-900 tracking-tight">Weather History Vault</h1>
             <p class="text-slate-500 mt-2 text-lg">50-Year Climate & Air Quality Archive (1975 - 2025)</p>
-            <div class="mt-4 inline-flex items-center gap-2 bg-indigo-50 border border-indigo-100 px-4 py-1.5 rounded-full text-indigo-700 text-xs font-semibold shadow-sm">
-                <span class="flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
-                Calendar-Day Archive: Same Date Analysis
+            <div class="mt-4 inline-flex items-center gap-4">
+                <div class="inline-flex items-center gap-2 bg-indigo-50 border border-indigo-100 px-4 py-1.5 rounded-full text-indigo-700 text-xs font-semibold shadow-sm">
+                    <span class="flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                    Calendar-Day Archive
+                </div>
+                <div id="era-trend" class="hidden inline-flex items-center gap-2 bg-white border px-4 py-1.5 rounded-full text-[10px] font-bold shadow-sm">
+                    </div>
             </div>
         </header>
 
@@ -40,22 +44,25 @@
                     <div class="flex-1 p-6 text-center bg-white pt-8">
                         <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">50y Day Avg</h3>
                         <p id="avg-temp" class="text-5xl font-black text-slate-700 my-2">--°C</p>
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">In <span id="loc-name-temp" class="text-indigo-600">...</span></span>
+                        <div id="stability-info" class="text-[9px] font-bold text-indigo-400 mt-2 uppercase tracking-tighter">--</div>
                     </div>
                 </div>
 
-                <div class="bg-white rounded-2xl shadow-md border-2 border-cyan-100 flex overflow-hidden min-h-[160px] relative">
-                    <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-slate-100 px-2 py-0.5 rounded text-[8px] font-bold text-slate-500 uppercase z-10">Same-Day Match (50y)</div>
-                    <div class="flex-1 p-6 text-center border-r border-slate-100 bg-gradient-to-b from-white to-cyan-50/30 pt-8">
-                        <h3 class="text-[10px] font-bold text-cyan-500 uppercase tracking-widest mb-1">Today's Humidity</h3>
-                        <p id="today-humid" class="text-5xl font-black text-cyan-600 my-2">--%</p>
-                        <span id="humid-trend" class="px-3 py-1 rounded-full text-[10px] font-bold inline-block mt-1">--</span>
-                    </div>
-                    <div class="flex-1 p-6 text-center bg-white pt-8">
-                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">50y Day Avg</h3>
-                        <p id="avg-humid-val" class="text-5xl font-black text-slate-700 my-2">--%</p>
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Historical Norm</span>
-                    </div>
+                <div class="bg-slate-900 rounded-2xl shadow-md flex flex-col p-6 text-white relative">
+                     <div class="absolute top-2 right-4 text-[8px] font-bold text-slate-500 uppercase">Historical Extremes for this Date</div>
+                     <div class="flex justify-between items-center h-full">
+                         <div class="text-center flex-1">
+                             <h4 class="text-red-400 text-[10px] font-bold uppercase mb-1">Record Hot</h4>
+                             <p id="rec-hot-val" class="text-3xl font-black">--°</p>
+                             <span id="rec-hot-year" class="text-[10px] text-slate-400 font-bold">--</span>
+                         </div>
+                         <div class="w-px h-12 bg-slate-700"></div>
+                         <div class="text-center flex-1">
+                             <h4 class="text-blue-400 text-[10px] font-bold uppercase mb-1">Record Cold</h4>
+                             <p id="rec-cold-val" class="text-3xl font-black">--°</p>
+                             <span id="rec-cold-year" class="text-[10px] text-slate-400 font-bold">--</span>
+                         </div>
+                     </div>
                 </div>
             </div>
 
@@ -85,10 +92,6 @@
                 </div>
             </div>
 
-            <div class="bg-slate-200/50 rounded-xl p-4 mb-8 text-[11px] text-slate-600 text-center italic">
-                <strong>Smart Caching:</strong> Data for this city is stored locally for 1 hour to protect API limits. Comparisons are matched to today's date (<span class="current-date-text">...</span>) across the 50-year archive.
-            </div>
-
             <div class="bg-white p-6 rounded-2xl shadow-sm border-t-4 border-slate-400">
                 <h3 class="text-sm font-bold text-slate-600 uppercase mb-4 tracking-wider text-center">50-Year Annual Averages (Mean)</h3>
                 <div id="year-list" class="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-2"></div>
@@ -103,61 +106,30 @@
         const formattedDate = today.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
         document.querySelectorAll('.current-date-text').forEach(el => el.innerText = formattedDate);
 
-        const CACHE_DURATION = 60 * 60 * 1000;
-
-        function getCachedData(city) {
-            const key = `vault_50y_${city.toLowerCase().replace(/\s+/g, '_')}`;
-            const cached = localStorage.getItem(key);
-            if (!cached) return null;
-            const parsed = JSON.parse(cached);
-            if ((Date.now() - parsed.timestamp) > CACHE_DURATION) {
-                localStorage.removeItem(key);
-                return null;
-            }
-            return parsed.data;
-        }
-
-        function setCachedData(city, data) {
-            const key = `vault_50y_${city.toLowerCase().replace(/\s+/g, '_')}`;
-            localStorage.setItem(key, JSON.stringify({ timestamp: Date.now(), data }));
-        }
-
         async function searchCity() {
             const cityInput = document.getElementById('cityInput').value.trim();
             if (!cityInput) return;
             const btn = document.getElementById('searchBtn');
             btn.disabled = true; btn.innerText = 'Analyzing...';
 
-            const cached = getCachedData(cityInput);
-            if (cached) {
-                document.getElementById('loc-name-temp').innerText = cached.cityName;
-                processData(cached.weather, cached.pollution);
-                btn.disabled = false; btn.innerText = 'Analyze 50 Years';
-                return;
-            }
-
             try {
                 const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityInput)}&count=1&language=en&format=json`);
                 const geoData = await geoRes.json();
                 if (geoData.results?.length > 0) {
                     const { latitude, longitude, name } = geoData.results[0];
-                    document.getElementById('loc-name-temp').innerText = name;
                     const weatherData = await fetchData(latitude, longitude);
                     const pollutionData = await fetchPollution(latitude, longitude);
-                    setCachedData(cityInput, { cityName: name, weather: weatherData, pollution: pollutionData });
                     processData(weatherData, pollutionData);
                 } else { alert("City not found"); }
-            } catch (e) { alert("API Busy. Please wait 30 seconds."); }
+            } catch (e) { alert("API Busy. Please wait."); }
             finally { btn.disabled = false; btn.innerText = 'Analyze 50 Years'; }
         }
 
         async function fetchData(lat, lon) {
             const end = new Date().toISOString().split('T')[0];
             const start = (new Date().getFullYear() - 50) + "-01-01";
-            const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&daily=temperature_2m_max,temperature_2m_mean,relative_humidity_2m_mean&timezone=auto`;
-            const res = await fetch(url);
-            if (!res.ok) throw new Error("API Limit");
-            return await res.json();
+            const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&daily=temperature_2m_max,temperature_2m_mean&timezone=auto`;
+            return await fetch(url).then(r => r.json());
         }
 
         async function fetchPollution(lat, lon) {
@@ -175,28 +147,46 @@
                 if (!yearlyData[year]) yearlyData[year] = { sum: 0, count: 0 };
                 if (mean !== null) { yearlyData[year].sum += mean; yearlyData[year].count += 1; }
                 if (t.endsWith(monthDay)) {
-                    dailyHistory.push({ year, temp: data.daily.temperature_2m_max[i], humid: data.daily.relative_humidity_2m_mean[i] });
+                    dailyHistory.push({ year, temp: data.daily.temperature_2m_max[i] });
                 }
             });
 
+            // 1. ERA COMPARISON (First 10 vs Last 10 Years)
+            const annualList = Object.keys(yearlyData).map(y => yearlyData[y].sum / yearlyData[y].count);
+            const first10 = annualList.slice(0, 10).reduce((a,b)=>a+b,0) / 10;
+            const last10 = annualList.slice(-10).reduce((a,b)=>a+b,0) / 10;
+            const eraDiff = (last10 - first10).toFixed(2);
+            const eraEl = document.getElementById('era-trend');
+            eraEl.classList.remove('hidden');
+            eraEl.innerHTML = eraDiff > 0 ? 
+                `<span class="text-red-500">↑ Era Warming: +${eraDiff}°C</span>` : 
+                `<span class="text-blue-500">↓ Era Cooling: ${eraDiff}°C</span>`;
+
+            // 2. DAY RECORDS
+            const sortedDaily = [...dailyHistory].sort((a,b) => b.temp - a.temp);
+            const recHot = sortedDaily[0];
+            const recCold = sortedDaily[sortedDaily.length-1];
+            document.getElementById('rec-hot-val').innerText = `${recHot.temp.toFixed(1)}°`;
+            document.getElementById('rec-hot-year').innerText = recHot.year;
+            document.getElementById('rec-cold-val').innerText = `${recCold.temp.toFixed(1)}°`;
+            document.getElementById('rec-cold-year').innerText = recCold.year;
+
+            // 3. STABILITY SCORE (Standard Deviation lite)
+            const temps = dailyHistory.map(d => d.temp);
+            const avgTempDay = temps.reduce((a,b)=>a+b,0) / temps.length;
+            const variance = temps.reduce((a,b) => a + Math.pow(b - avgTempDay, 2), 0) / temps.length;
+            const stability = variance < 5 ? 'High Stability' : (variance < 15 ? 'Moderate Flux' : 'Wildly Volatile');
+            document.getElementById('stability-info').innerText = stability;
+
+            // Standard Processing
             const latest = dailyHistory[dailyHistory.length-1];
-            const avgTemp = dailyHistory.reduce((a,b)=>a+b.temp,0) / dailyHistory.length;
-            const avgHumid = dailyHistory.reduce((a,b)=>a+b.humid,0) / dailyHistory.length;
-
             document.getElementById('today-temp').innerText = `${latest.temp.toFixed(1)}°C`;
-            document.getElementById('avg-temp').innerText = `${avgTemp.toFixed(1)}°C`;
-            document.getElementById('today-humid').innerText = `${Math.round(latest.humid)}%`;
-            document.getElementById('avg-humid-val').innerText = `${Math.round(avgHumid)}%`;
-
-            const tDiff = (latest.temp - avgTemp).toFixed(1);
+            document.getElementById('avg-temp').innerText = `${avgTempDay.toFixed(1)}°C`;
+            
+            const tDiff = (latest.temp - avgTempDay).toFixed(1);
             const tTag = document.getElementById('comparison-tag');
-            tTag.innerText = tDiff > 0 ? `${tDiff}°C ABOVE` : `${Math.abs(tDiff)}°C BELOW`;
+            tTag.innerText = tDiff > 0 ? `${tDiff}°C ABOVE AVG` : `${Math.abs(tDiff)}°C BELOW AVG`;
             tTag.className = `px-3 py-1 rounded-full text-[10px] font-bold mt-1 ${tDiff > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
-
-            const hDiff = latest.humid - avgHumid;
-            const hTag = document.getElementById('humid-trend');
-            hTag.innerText = hDiff > 5 ? 'DAMP' : (hDiff < -5 ? 'DRY' : 'NORMAL');
-            hTag.className = `px-3 py-1 rounded-full text-[10px] font-bold mt-1 ${hDiff > 5 ? 'bg-blue-100 text-blue-600' : (hDiff < -5 ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-500')}`;
 
             if (pollutionData?.current) {
                 const v = pollutionData.current.pm2_5;
@@ -209,42 +199,26 @@
             document.getElementById('extreme-days').innerText = `${dailyHistory.filter(d=>d.temp>=30).length} Times`;
             document.getElementById('freezing-days').innerText = `${dailyHistory.filter(d=>d.temp<0).length} Times`;
 
-            // YEAR HIGHLIGHTING LOGIC
+            // GRID HIGHLIGHTS
             const annualAverages = Object.keys(yearlyData).map(y => ({
-                year: y,
-                avg: yearlyData[y].sum / (yearlyData[y].count || 1)
+                year: y, avg: yearlyData[y].sum / (yearlyData[y].count || 1)
             })).filter(a => a.avg !== 0);
 
-            const hottest = [...annualAverages].sort((a,b) => b.avg - a.avg)[0];
-            const coldest = [...annualAverages].sort((a,b) => a.avg - b.avg)[0];
+            const hottestYear = [...annualAverages].sort((a,b) => b.avg - a.avg)[0];
+            const coldestYear = [...annualAverages].sort((a,b) => a.avg - b.avg)[0];
 
             const yearList = document.getElementById('year-list');
             yearList.innerHTML = '';
-            
             [...annualAverages].reverse().forEach(item => {
-                let borderClass = "border-slate-200";
-                let textClass = "text-slate-700";
-                let bgClass = "bg-white";
-                let badge = "";
-
-                if(item.year === hottest.year) {
-                    borderClass = "border-red-500 border-2";
-                    textClass = "text-red-700";
-                    bgClass = "bg-red-50";
+                let borderClass = "border-slate-200", textClass = "text-slate-700", bgClass = "bg-white", badge = "";
+                if(item.year === hottestYear.year) {
+                    borderClass = "border-red-500 border-2"; textClass = "text-red-700"; bgClass = "bg-red-50";
                     badge = `<div class="text-[7px] font-black text-red-500 leading-none mb-1">HOTTEST</div>`;
-                } else if(item.year === coldest.year) {
-                    borderClass = "border-blue-500 border-2";
-                    textClass = "text-blue-700";
-                    bgClass = "bg-blue-50";
+                } else if(item.year === coldestYear.year) {
+                    borderClass = "border-blue-500 border-2"; textClass = "text-blue-700"; bgClass = "bg-blue-50";
                     badge = `<div class="text-[7px] font-black text-blue-500 leading-none mb-1">COLDEST</div>`;
                 }
-
-                yearList.innerHTML += `
-                    <div class="${bgClass} p-2 rounded-lg border ${borderClass} text-center shadow-sm hover:scale-105 transition-transform">
-                        ${badge}
-                        <div class="text-[9px] font-bold text-slate-400">${item.year}</div>
-                        <div class="text-sm font-black ${textClass}">${item.avg.toFixed(1)}°</div>
-                    </div>`;
+                yearList.innerHTML += `<div class="${bgClass} p-2 rounded-lg border ${borderClass} text-center shadow-sm hover:scale-105 transition-transform">${badge}<div class="text-[9px] font-bold text-slate-400">${item.year}</div><div class="text-sm font-black ${textClass}">${item.avg.toFixed(1)}°</div></div>`;
             });
 
             renderChart(dailyHistory);
@@ -258,10 +232,9 @@
                 type: 'line',
                 data: {
                     labels: history.map(h => h.year),
-                    datasets: [{ label: `Temp °C`, data: history.map(h => h.temp), borderColor: '#4f46e5', tension: 0.1, yAxisID: 'y' },
-                               { label: `Humid %`, data: history.map(h => h.humid), borderColor: '#06b6d4', borderDash: [5,5], tension: 0.1, yAxisID: 'y1' }]
+                    datasets: [{ label: `High Temp °C`, data: history.map(h => h.temp), borderColor: '#4f46e5', tension: 0.1 }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { position: 'left' }, y1: { position: 'right', grid: { display: false } } } }
+                options: { responsive: true, maintainAspectRatio: false }
             });
         }
     </script>
