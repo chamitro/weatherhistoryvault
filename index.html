@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weather History Vault - 50 Year Analysis</title>
+    <title>Weather History Vault - 30 Year Analysis</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -12,7 +12,7 @@
     <div class="max-w-7xl mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
             <h1 class="text-4xl font-extrabold text-indigo-900 tracking-tight">Weather History Vault</h1>
-            <p class="text-slate-500 mt-2 text-lg">50-Year Climate, Humidity & Air Quality (1975 - 2025)</p>
+            <p class="text-slate-500 mt-2 text-lg">30-Year Climate & Air Quality Archive</p>
             <div class="mt-4 inline-flex items-center gap-2 bg-indigo-50 border border-indigo-100 px-4 py-1.5 rounded-full text-indigo-700 text-xs font-semibold shadow-sm">
                 <span class="flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
                 Calendar-Day Archive: Same Date Analysis
@@ -23,92 +23,75 @@
             <input type="text" id="cityInput" placeholder="Enter city (e.g. Athens, Berlin)" 
                    class="px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none w-full md:w-96 shadow-sm">
             <button onclick="searchCity()" id="searchBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-lg font-semibold transition-all shadow-md">
-                Analyze 50 Years
+                Analyze History
             </button>
         </div>
 
         <div id="app-content" class="opacity-0 transition-opacity duration-500">
             
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                
                 <div class="bg-white rounded-2xl shadow-md border-2 border-indigo-100 flex overflow-hidden min-h-[160px] relative">
-                    <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-slate-100 px-2 py-0.5 rounded text-[8px] font-bold text-slate-500 uppercase tracking-tighter z-10">
-                        Date-Matched Archive (1975-2025)
-                    </div>
-                    
+                    <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-slate-100 px-2 py-0.5 rounded text-[8px] font-bold text-slate-500 uppercase z-10">Same-Day Match (30y)</div>
                     <div class="flex-1 p-6 text-center border-r border-slate-100 bg-gradient-to-b from-white to-indigo-50/30 pt-8">
                         <h3 class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Today's High</h3>
                         <p id="today-temp" class="text-5xl font-black text-indigo-600 my-2">--°C</p>
                         <span id="comparison-tag" class="px-3 py-1 rounded-full text-[10px] font-bold inline-block mt-1">--</span>
                     </div>
                     <div class="flex-1 p-6 text-center bg-white pt-8">
-                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">50y Day Avg</h3>
+                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">30y Day Avg</h3>
                         <p id="avg-temp" class="text-5xl font-black text-slate-700 my-2">--°C</p>
                         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">In <span id="loc-name-temp" class="text-indigo-600">...</span></span>
                     </div>
                 </div>
 
                 <div class="bg-white rounded-2xl shadow-md border-2 border-cyan-100 flex overflow-hidden min-h-[160px] relative">
-                    <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-slate-100 px-2 py-0.5 rounded text-[8px] font-bold text-slate-500 uppercase tracking-tighter z-10">
-                        Date-Matched Archive (1975-2025)
-                    </div>
-
+                    <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-slate-100 px-2 py-0.5 rounded text-[8px] font-bold text-slate-500 uppercase z-10">Same-Day Match (30y)</div>
                     <div class="flex-1 p-6 text-center border-r border-slate-100 bg-gradient-to-b from-white to-cyan-50/30 pt-8">
                         <h3 class="text-[10px] font-bold text-cyan-500 uppercase tracking-widest mb-1">Today's Humidity</h3>
                         <p id="today-humid" class="text-5xl font-black text-cyan-600 my-2">--%</p>
                         <span id="humid-trend" class="px-3 py-1 rounded-full text-[10px] font-bold inline-block mt-1">--</span>
                     </div>
                     <div class="flex-1 p-6 text-center bg-white pt-8">
-                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">50y Day Avg</h3>
+                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">30y Day Avg</h3>
                         <p id="avg-humid-val" class="text-5xl font-black text-slate-700 my-2">--%</p>
                         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Historical Norm</span>
                     </div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div id="pollution-card" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center transition-all duration-500">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div id="pollution-card" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center flex flex-col justify-center">
                     <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Air Quality (PM2.5)</h3>
                     <p id="pollution-val" class="text-4xl font-black my-2">--</p>
                     <span id="pollution-comparison" class="px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-tighter">Analyzing...</span>
                 </div>
 
-                <div class="bg-emerald-800 p-6 rounded-2xl text-white shadow-lg text-center">
-                    <h3 class="text-emerald-300 text-xs font-bold uppercase tracking-widest mb-1">Spring Arrival</h3>
-                    <p id="spring-shift" class="text-2xl font-bold">--</p>
-                    <p class="text-[9px] text-emerald-200 mt-1 uppercase">15°C Week Shift</p>
-                </div>
-
                 <div class="bg-orange-600 p-6 rounded-2xl text-white shadow-lg text-center">
-                    <h3 class="text-orange-200 text-xs font-bold uppercase tracking-widest mb-1">Extreme Days</h3>
-                    <p id="extreme-days" class="text-2xl font-bold">--</p>
-                    <p id="extreme-label" class="text-[9px] text-orange-100 mt-1 uppercase">30°C+ Over 50y</p>
+                    <h3 class="text-orange-200 text-xs font-bold uppercase tracking-widest mb-1">Extreme Heat</h3>
+                    <p id="extreme-days" class="text-3xl font-bold">--</p>
+                    <p class="text-[9px] text-orange-100 mt-1 uppercase">Today's date hit 30°C+</p>
                 </div>
 
-                <div class="bg-blue-900 p-6 rounded-2xl text-white shadow-lg text-center border-b-4 border-blue-400">
-                    <h3 class="text-blue-200 text-xs font-bold uppercase tracking-widest mb-1">Freezing Days</h3>
-                    <p id="freezing-days" class="text-2xl font-bold">--</p>
-                    <p id="freezing-label" class="text-[9px] text-blue-100 mt-1 uppercase">Sub-zero Over 50y</p>
+                <div class="bg-blue-900 p-6 rounded-2xl text-white shadow-lg text-center">
+                    <h3 class="text-blue-200 text-xs font-bold uppercase tracking-widest mb-1">Historical Frost</h3>
+                    <p id="freezing-days" class="text-3xl font-bold">--</p>
+                    <p class="text-[9px] text-blue-100 mt-1 uppercase">Today's date hit sub-zero</p>
                 </div>
             </div>
 
             <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 mb-8">
-                <h3 class="text-center font-bold text-slate-700 mb-4 uppercase text-sm tracking-wide">
-                    Historical Record for <span id="chart-date-label">this day</span> (1975-2025)
-                </h3>
                 <div class="relative h-[350px]">
                     <canvas id="historyChart"></canvas>
                 </div>
             </div>
 
-            <div class="bg-slate-200/50 rounded-xl p-4 mb-8 text-[11px] text-slate-600 leading-relaxed text-center italic">
-                <strong>Data Note:</strong> All averages shown above are <strong>calendar-specific</strong>. The 50y average represents the mean value for every <span class="current-date-text font-bold">...</span> across the historical archive. This provides a precise comparison of today's conditions against identical dates in the past, rather than general monthly trends.
+            <div class="bg-slate-200/50 rounded-xl p-4 mb-8 text-[11px] text-slate-600 text-center italic">
+                <strong>Performance Mode:</strong> Data is cached for 1 hour per city. Comparisons are matched to today's specific date (<span class="current-date-text">...</span>).
             </div>
 
             <div class="bg-white p-6 rounded-2xl shadow-sm border-t-4 border-slate-400">
-                <h3 class="text-sm font-bold text-slate-600 uppercase mb-4 tracking-wider text-center">Full Year Annual Averages (Mean)</h3>
-                <div id="year-list" class="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-2">
-                </div>
+                <h3 class="text-sm font-bold text-slate-600 uppercase mb-4 tracking-wider text-center">Annual Archive (Mean)</h3>
+                <div id="year-list" class="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-2"></div>
             </div>
         </div>
     </div>
@@ -118,42 +101,101 @@
         const today = new Date();
         const monthDay = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         const formattedDate = today.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
-        
-        document.getElementById('chart-date-label').innerText = formattedDate;
         document.querySelectorAll('.current-date-text').forEach(el => el.innerText = formattedDate);
 
+        // --- CACHING ENGINE ---
+        const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
+
+        function getCachedData(city) {
+            const key = `weather_vault_${city.toLowerCase().replace(/\s+/g, '_')}`;
+            const cached = localStorage.getItem(key);
+            if (!cached) return null;
+
+            const parsed = JSON.parse(cached);
+            const isExpired = (Date.now() - parsed.timestamp) > CACHE_DURATION;
+            
+            if (isExpired) {
+                localStorage.removeItem(key);
+                return null;
+            }
+            return parsed.data;
+        }
+
+        function setCachedData(city, data) {
+            const key = `weather_vault_${city.toLowerCase().replace(/\s+/g, '_')}`;
+            const cacheObject = {
+                timestamp: Date.now(),
+                data: data
+            };
+            localStorage.setItem(key, JSON.stringify(cacheObject));
+        }
+
         async function searchCity() {
-            const city = document.getElementById('cityInput').value.trim();
-            if (!city) return alert("Please enter a city");
+            const cityInput = document.getElementById('cityInput').value.trim();
+            if (!cityInput) return;
+            
             const btn = document.getElementById('searchBtn');
             btn.disabled = true;
-            btn.innerText = 'Extracting History...';
+            btn.innerText = 'Analyzing...';
 
+            // 1. Check Cache
+            const cached = getCachedData(cityInput);
+            if (cached) {
+                console.log("Loading from cache...");
+                document.getElementById('loc-name-temp').innerText = cached.cityName;
+                processData(cached.weather, cached.pollution);
+                btn.disabled = false;
+                btn.innerText = 'Analyze History';
+                return;
+            }
+
+            // 2. If not in cache, fetch from API
             try {
-                const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
+                const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityInput)}&count=1&language=en&format=json`);
                 const geoData = await geoRes.json();
+                
                 if (geoData.results?.length > 0) {
                     const { latitude, longitude, name } = geoData.results[0];
-                    document.getElementById('loc-name-temp').innerText = `${name}`;
-                    await fetchData(latitude, longitude);
-                } else { alert("City not found"); }
-            } catch (e) { alert("Error connecting to API"); }
-            finally { btn.disabled = false; btn.innerText = 'Analyze 50 Years'; }
+                    document.getElementById('loc-name-temp').innerText = name;
+                    
+                    const weatherData = await fetchData(latitude, longitude);
+                    const pollutionData = await fetchPollution(latitude, longitude);
+                    
+                    // Save to cache
+                    setCachedData(cityInput, { 
+                        cityName: name, 
+                        weather: weatherData, 
+                        pollution: pollutionData 
+                    });
+
+                    processData(weatherData, pollutionData);
+                } else {
+                    alert("City not found");
+                }
+            } catch (e) {
+                alert("API limit or connection error.");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Analyze History';
+            }
         }
 
         async function fetchData(lat, lon) {
             const end = new Date().toISOString().split('T')[0];
-            const start = (new Date().getFullYear() - 50) + "-01-01";
+            const start = (new Date().getFullYear() - 30) + "-01-01";
             const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&daily=temperature_2m_max,temperature_2m_mean,relative_humidity_2m_mean&timezone=auto`;
-            const pollutionUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=pm2_5`;
+            
+            const response = await fetch(url);
+            if (!response.ok) throw new Error("Weather API limit");
+            return await response.json();
+        }
 
+        async function fetchPollution(lat, lon) {
+            const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=pm2_5`;
             try {
-                const [weatherRes, pollutionRes] = await Promise.all([
-                    fetch(url).then(r => r.json()),
-                    fetch(pollutionUrl).then(r => r.json()).catch(() => null)
-                ]);
-                processData(weatherRes, pollutionRes);
-            } catch (e) { alert("Error fetching data."); }
+                const res = await fetch(url);
+                return await res.json();
+            } catch(e) { return null; }
         }
 
         function processData(data, pollutionData) {
@@ -161,95 +203,53 @@
             const yearlyData = {};
 
             data.daily.time.forEach((t, i) => {
-                const year = t.split('-')[0];
+                const year = t.substring(0, 4);
                 const mean = data.daily.temperature_2m_mean[i];
-                const max = data.daily.temperature_2m_max[i];
-                const humid = data.daily.relative_humidity_2m_mean[i];
-                if (!yearlyData[year]) yearlyData[year] = { means: [], humids: [] };
-                if (mean !== null) yearlyData[year].means.push(mean);
-                if (t.endsWith(monthDay)) dailyHistory.push({ year, temp: max, humid: humid });
-            });
-
-            // 1. Spring Arrival Logic
-            const findSpringDay = (means) => {
-                for(let i=0; i<180; i++) {
-                    if(means[i] > 15 && means[i+1] > 15 && means[i+2] > 15) return i;
+                if (!yearlyData[year]) yearlyData[year] = { sum: 0, count: 0 };
+                if (mean !== null) {
+                    yearlyData[year].sum += mean;
+                    yearlyData[year].count += 1;
                 }
-                return null;
-            };
-            const years = Object.keys(yearlyData).sort();
-            const earlySprings = [], recentSprings = [];
-            const splitPoint = Math.floor(years.length / 2);
-            years.forEach((y, idx) => {
-                const day = findSpringDay(yearlyData[y].means);
-                if (day !== null) {
-                    if (idx < splitPoint) earlySprings.push(day); 
-                    else recentSprings.push(day);
+                if (t.endsWith(monthDay)) {
+                    dailyHistory.push({ year, temp: data.daily.temperature_2m_max[i], humid: data.daily.relative_humidity_2m_mean[i] });
                 }
             });
-            const avgEarly = earlySprings.length ? earlySprings.reduce((a,b)=>a+b, 0) / earlySprings.length : 0;
-            const avgRecent = recentSprings.length ? recentSprings.reduce((a,b)=>a+b, 0) / recentSprings.length : 0;
-            const shift = avgEarly - avgRecent;
-            document.getElementById('spring-shift').innerText = (earlySprings.length && recentSprings.length) ? (shift > 0 ? `${shift.toFixed(1)} Days Earlier` : `${Math.abs(shift).toFixed(1)} Days Later`) : "N/A";
 
-            // 2. Pollution UI
-            const pollVal = document.getElementById('pollution-val'), pollComp = document.getElementById('pollution-comparison'), pollCard = document.getElementById('pollution-card');
-            if (pollutionData && pollutionData.current) {
-                const val = pollutionData.current.pm2_5;
-                pollVal.innerText = val.toFixed(1);
-                if (val <= 5) {
-                    pollComp.innerText = "Safe Levels";
-                    pollComp.className = "px-2 py-1 rounded-md text-[9px] font-black uppercase bg-green-100 text-green-600";
-                    pollCard.style.borderBottom = "4px solid #22c55e";
-                } else {
-                    pollComp.innerText = `${(val / 5).toFixed(1)}x WHO Limit`;
-                    pollComp.className = `px-2 py-1 rounded-md text-[9px] font-black uppercase ${val > 35 ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-700'}`;
-                    pollCard.style.borderBottom = `4px solid ${val > 35 ? '#ef4444' : '#eab308'}`;
-                }
-            } else { pollVal.innerText = "N/A"; pollComp.innerText = "Unavailable"; }
-
-            // 3. Humidity Specific Day Logic
             const latest = dailyHistory[dailyHistory.length-1];
-            const avgHumid = dailyHistory.reduce((a, b) => a + (b.humid || 0), 0) / (dailyHistory.length || 1);
-            const humidTrend = document.getElementById('humid-trend');
-            
-            document.getElementById('today-humid').innerText = `${latest ? Math.round(latest.humid) : '--'}%`;
-            document.getElementById('avg-humid-val').innerText = `${Math.round(avgHumid)}%`;
-            
-            if (latest) {
-                const hDiff = latest.humid - avgHumid;
-                humidTrend.innerText = hDiff > 5 ? `${Math.abs(hDiff).toFixed(0)}% DAMP` : (hDiff < -5 ? `${Math.abs(hDiff).toFixed(0)}% DRY` : "STABLE");
-                humidTrend.className = `px-3 py-1 rounded-full text-[10px] font-bold inline-block mt-1 ${hDiff > 5 ? 'bg-blue-100 text-blue-600' : (hDiff < -5 ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-500')}`;
-            }
+            const avgTemp = dailyHistory.reduce((a,b)=>a+b.temp,0) / dailyHistory.length;
+            const avgHumid = dailyHistory.reduce((a,b)=>a+b.humid,0) / dailyHistory.length;
 
-            // 4. Temperature Specific Day Logic
-            const avgTemp = dailyHistory.reduce((a,b)=>a+b.temp, 0) / (dailyHistory.length || 1);
+            document.getElementById('today-temp').innerText = `${latest.temp.toFixed(1)}°C`;
             document.getElementById('avg-temp').innerText = `${avgTemp.toFixed(1)}°C`;
-            if (latest) {
-                document.getElementById('today-temp').innerText = `${latest.temp.toFixed(1)}°C`;
-                const diff = (latest.temp - avgTemp).toFixed(1);
-                const tag = document.getElementById('comparison-tag');
-                tag.innerText = diff > 0 ? `${diff}°C ABOVE AVG` : `${Math.abs(diff)}°C BELOW AVG`;
-                tag.className = `px-3 py-1 rounded-full text-[10px] font-bold inline-block mt-1 ${diff > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
+            document.getElementById('today-humid').innerText = `${Math.round(latest.humid)}%`;
+            document.getElementById('avg-humid-val').innerText = `${Math.round(avgHumid)}%`;
+
+            const tDiff = (latest.temp - avgTemp).toFixed(1);
+            const tTag = document.getElementById('comparison-tag');
+            tTag.innerText = tDiff > 0 ? `${tDiff}°C ABOVE` : `${Math.abs(tDiff)}°C BELOW`;
+            tTag.className = `px-3 py-1 rounded-full text-[10px] font-bold mt-1 ${tDiff > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
+
+            const hDiff = latest.humid - avgHumid;
+            const hTag = document.getElementById('humid-trend');
+            hTag.innerText = hDiff > 5 ? 'DAMP' : (hDiff < -5 ? 'DRY' : 'NORMAL');
+            hTag.className = `px-3 py-1 rounded-full text-[10px] font-bold mt-1 ${hDiff > 5 ? 'bg-blue-100 text-blue-600' : (hDiff < -5 ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-500')}`;
+
+            if (pollutionData?.current) {
+                const v = pollutionData.current.pm2_5;
+                document.getElementById('pollution-val').innerText = v.toFixed(1);
+                const pComp = document.getElementById('pollution-comparison');
+                pComp.innerText = v <= 5 ? "Safe" : `${(v/5).toFixed(1)}x Limit`;
+                pComp.className = `px-2 py-1 rounded-md text-[9px] font-bold ${v <= 5 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`;
             }
 
-            // 5. Threshold Analysis
-            const extremeDays = dailyHistory.filter(h => h.temp >= 30).length;
-            document.getElementById('extreme-days').innerText = `${extremeDays} Times`;
-            const freezingDays = dailyHistory.filter(h => h.temp < 0).length;
-            document.getElementById('freezing-days').innerText = `${freezingDays} Times`;
+            document.getElementById('extreme-days').innerText = `${dailyHistory.filter(d=>d.temp>=30).length} Times`;
+            document.getElementById('freezing-days').innerText = `${dailyHistory.filter(d=>d.temp<0).length} Times`;
 
-            // 6. Year List (Annual Means)
             const yearList = document.getElementById('year-list');
             yearList.innerHTML = '';
-            const processedAverages = years.map(y => ({ year: y, avg: yearlyData[y].means.reduce((a,b)=>a+b, 0) / (yearlyData[y].means.length || 1) }));
-            const maxAvg = Math.max(...processedAverages.map(p => p.avg));
-            const minAvg = Math.min(...processedAverages.map(p => p.avg));
-            [...processedAverages].reverse().forEach(p => {
-                let colorClass = "bg-slate-50 border-slate-100";
-                if (p.avg === maxAvg) colorClass = "bg-red-50 border-red-200 ring-2 ring-red-500 ring-inset";
-                if (p.avg === minAvg) colorClass = "bg-blue-50 border-blue-200 ring-2 ring-blue-500 ring-inset";
-                yearList.innerHTML += `<div class="${colorClass} p-2 rounded-lg border text-center transition-transform hover:scale-105"><div class="text-[9px] font-bold text-slate-400">${p.year}</div><div class="text-sm font-black text-slate-700">${p.avg.toFixed(1)}°</div></div>`;
+            Object.keys(yearlyData).reverse().forEach(y => {
+                const avg = yearlyData[y].sum / yearlyData[y].count;
+                yearList.innerHTML += `<div class="bg-white p-2 rounded-lg border text-center shadow-sm"><div class="text-[9px] font-bold text-slate-400">${y}</div><div class="text-sm font-black text-slate-700">${avg.toFixed(1)}°</div></div>`;
             });
 
             renderChart(dailyHistory);
@@ -263,19 +263,10 @@
                 type: 'line',
                 data: {
                     labels: history.map(h => h.year),
-                    datasets: [
-                        { label: `Max Temp (°C)`, data: history.map(h => h.temp), borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', tension: 0.1, fill: true, yAxisID: 'y' },
-                        { label: `Humidity (%)`, data: history.map(h => h.humid), borderColor: '#06b6d4', borderDash: [5, 5], tension: 0.1, yAxisID: 'y1' }
-                    ]
+                    datasets: [{ label: `Temp °C`, data: history.map(h => h.temp), borderColor: '#4f46e5', tension: 0.1, yAxisID: 'y' },
+                               { label: `Humid %`, data: history.map(h => h.humid), borderColor: '#06b6d4', borderDash: [5,5], tension: 0.1, yAxisID: 'y1' }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { 
-                        y: { position: 'left', title: { display: true, text: 'Temp °C' } },
-                        y1: { position: 'right', grid: { display: false }, title: { display: true, text: 'Humid %' } }
-                    }
-                }
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { position: 'left' }, y1: { position: 'right', grid: { display: false } } } }
             });
         }
     </script>
