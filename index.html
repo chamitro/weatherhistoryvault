@@ -26,7 +26,7 @@
                     <span class="flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
                     Calendar-Day Archive
                 </div>
-                <div id="era-trend" onclick="showInfo('era')" class="hidden cursor-help inline-flex items-center gap-2 bg-white border px-4 py-1.5 rounded-full text-[10px] font-bold shadow-sm hover:border-indigo-300 transition-colors"></div>
+                <div id="era-trend" onclick="showInfo('era')" class="hidden cursor-help inline-flex items-center gap-2 bg-white border px-4 py-1.5 rounded-full text-[10px] font-bold shadow-sm hover:border-indigo-300 transition-colors text-slate-700"></div>
                 <button onclick="clearCityCache()" class="text-[10px] font-bold text-slate-400 uppercase hover:text-red-500 transition-colors">Clear Cache 🗑️</button>
             </div>
         </header>
@@ -109,7 +109,6 @@
         const today = new Date();
         const monthDay = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-        // MODAL LOGIC
         function showInfo(type) {
             const modal = document.getElementById('infoModal');
             const title = document.getElementById('modalTitle');
@@ -117,7 +116,7 @@
 
             if (type === 'era') {
                 title.innerText = "What is Era Shift?";
-                body.innerText = "This compares the annual average temperature of the first 5 years (1975-1980) against the most recent 5 years. It highlights how the 'background' climate of the city has warmed or cooled over half a century.";
+                body.innerText = "This compares the annual average temperature of the first 10 years (1975-1985) against the most recent 10 years (2015-2025). This 10-year window provides a much more stable and accurate view of long-term climate warming or cooling in this city.";
             } else if (type === 'streak') {
                 title.innerText = "What is a Streak?";
                 body.innerText = "This scans the entire 50-year database to find the longest consecutive number of days where the temperature stayed within 2°C of today's high. It reveals the longest historical heatwaves or cold snaps of this intensity.";
@@ -203,8 +202,12 @@
             });
             document.getElementById('streak-val').innerText = `Streak: ${maxStreak} days`;
 
+            // UPDATED ERA TREND: 10 YEARS VS 10 YEARS
             const annualList = Object.keys(yearlyData).map(y => yearlyData[y].sum / yearlyData[y].count);
-            const eraDiff = (annualList.slice(-5).reduce((a,b)=>a+b,0)/5 - annualList.slice(0, 5).reduce((a,b)=>a+b,0)/5).toFixed(2);
+            const first10Avg = annualList.slice(0, 10).reduce((a,b)=>a+b,0) / 10;
+            const last10Avg = annualList.slice(-10).reduce((a,b)=>a+b,0) / 10;
+            const eraDiff = (last10Avg - first10Avg).toFixed(2);
+            
             document.getElementById('era-trend').classList.remove('hidden');
             document.getElementById('era-trend').innerHTML = `Era Shift: <span class="${eraDiff > 0 ? 'text-red-500' : 'text-blue-500'}">${eraDiff > 0 ? '+' : ''}${eraDiff}°C</span>`;
 
