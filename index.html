@@ -126,7 +126,7 @@
 
             if (type === 'era') {
                 title.innerText = "What is Era Shift?";
-                body.innerText = "This compares the annual average temperature of the first 10 years (1975-1985) against the most recent 10 years (2015-2025). This 10-year window provides a much more stable and accurate view of long-term climate warming or cooling in this city.";
+                body.innerText = "This compares the annual average temperature of the first 25 years (1975-2000) against the most recent 25 years (2000-2025). This 10-year window provides a much more stable and accurate view of long-term climate warming or cooling in this city.";
             } else if (type === 'streak') {
                 title.innerText = "What is a Streak?";
                 body.innerText = "This scans the entire 50-year database to find the longest consecutive number of days where the temperature stayed within 2°C of today's high. It reveals the longest historical heatwaves or cold snaps of this intensity.";
@@ -212,10 +212,10 @@
             });
             document.getElementById('streak-val').innerText = `Streak: ${maxStreak} days`;
 
-            // UPDATED ERA TREND: 10 YEARS VS 10 YEARS
+            // UPDATED ERA TREND: 25 YEARS VS 25 YEARS
             const annualList = Object.keys(yearlyData).map(y => yearlyData[y].sum / yearlyData[y].count);
-            const first10Avg = annualList.slice(0, 10).reduce((a,b)=>a+b,0) / 10;
-            const last10Avg = annualList.slice(-10).reduce((a,b)=>a+b,0) / 10;
+            const first10Avg = annualList.slice(0, 25).reduce((a,b)=>a+b,0) / 25;
+            const last10Avg = annualList.slice(-25).reduce((a,b)=>a+b,0) / 25;
             const eraDiff = (last10Avg - first10Avg).toFixed(2);
             
             document.getElementById('era-trend').classList.remove('hidden');
