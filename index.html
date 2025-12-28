@@ -9,6 +9,14 @@
 </head>
 <body class="bg-slate-100 text-slate-900 min-h-screen font-sans">
 
+    <div id="infoModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick="closeModal()">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl transform transition-all scale-100" onclick="event.stopPropagation()">
+            <h2 id="modalTitle" class="text-xl font-bold text-indigo-900 mb-2"></h2>
+            <p id="modalBody" class="text-slate-600 text-sm leading-relaxed mb-6"></p>
+            <button onclick="closeModal()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-colors">Got it</button>
+        </div>
+    </div>
+
     <div class="max-w-7xl mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
             <h1 class="text-4xl font-extrabold text-indigo-900 tracking-tight">Weather History Vault</h1>
@@ -18,7 +26,7 @@
                     <span class="flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
                     Calendar-Day Archive
                 </div>
-                <div id="era-trend" class="hidden inline-flex items-center gap-2 bg-white border px-4 py-1.5 rounded-full text-[10px] font-bold shadow-sm"></div>
+                <div id="era-trend" onclick="showInfo('era')" class="hidden cursor-help inline-flex items-center gap-2 bg-white border px-4 py-1.5 rounded-full text-[10px] font-bold shadow-sm hover:border-indigo-300 transition-colors"></div>
                 <button onclick="clearCityCache()" class="text-[10px] font-bold text-slate-400 uppercase hover:text-red-500 transition-colors">Clear Cache 🗑️</button>
             </div>
         </header>
@@ -32,7 +40,7 @@
         </div>
 
         <div id="app-content" class="opacity-0 transition-opacity duration-500">
-            
+
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <div class="bg-white rounded-2xl shadow-md border-2 border-indigo-100 flex flex-col overflow-hidden relative">
                     <div class="absolute top-2 left-4 bg-slate-100 px-2 py-0.5 rounded text-[8px] font-bold text-slate-500 uppercase z-10">Today vs 50y Average</div>
@@ -45,7 +53,7 @@
                         <div class="flex-1 px-6 text-center">
                             <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Humidity</h3>
                             <p id="today-humid" class="text-5xl font-black text-cyan-600 my-2">--%</p>
-                            <div id="streak-val" class="text-[9px] font-bold text-orange-500 uppercase mt-1">Streak: -- days</div>
+                            <div id="streak-val" onclick="showInfo('streak')" class="cursor-help text-[9px] font-bold text-orange-500 uppercase mt-1 decoration-dotted underline underline-offset-2">Streak: -- days</div>
                         </div>
                     </div>
                     <div class="bg-slate-50 border-t border-slate-100 p-3 flex justify-around text-[9px] font-bold uppercase tracking-tighter">
@@ -101,6 +109,27 @@
         const today = new Date();
         const monthDay = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
+        // MODAL LOGIC
+        function showInfo(type) {
+            const modal = document.getElementById('infoModal');
+            const title = document.getElementById('modalTitle');
+            const body = document.getElementById('modalBody');
+
+            if (type === 'era') {
+                title.innerText = "What is Era Shift?";
+                body.innerText = "This compares the annual average temperature of the first 5 years (1975-1980) against the most recent 5 years. It highlights how the 'background' climate of the city has warmed or cooled over half a century.";
+            } else if (type === 'streak') {
+                title.innerText = "What is a Streak?";
+                body.innerText = "This scans the entire 50-year database to find the longest consecutive number of days where the temperature stayed within 2°C of today's high. It reveals the longest historical heatwaves or cold snaps of this intensity.";
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('infoModal').classList.add('hidden');
+        }
+
         function clearCityCache() {
             localStorage.clear();
             alert("Storage cleared. Next search will use fresh API credits.");
@@ -112,7 +141,6 @@
             const btn = document.getElementById('searchBtn');
             const cacheKey = `vault_v2_${cityInput.toLowerCase().replace(/\s+/g, '')}`;
 
-            // Check Cache
             const cached = localStorage.getItem(cacheKey);
             if (cached) {
                 processData(JSON.parse(cached).w, JSON.parse(cached).p);
@@ -128,7 +156,7 @@
                     const { latitude, longitude } = geoData.results[0];
                     const weatherData = await fetchData(latitude, longitude);
                     const pollutionData = await fetchPollution(latitude, longitude);
-                    
+
                     localStorage.setItem(cacheKey, JSON.stringify({w: weatherData, p: pollutionData}));
                     processData(weatherData, pollutionData);
                 } else { alert("City not found"); }
@@ -140,7 +168,6 @@
         async function fetchData(lat, lon) {
             const end = new Date().toISOString().split('T')[0];
             const start = (new Date().getFullYear() - 50) + "-01-01";
-            // CREDIT SAVING: We only request mean and max. Humidity is NOT requested for every day of 50 years to save weight.
             const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&daily=temperature_2m_max,temperature_2m_mean,relative_humidity_2m_mean&timezone=auto`;
             const res = await fetch(url);
             if (!res.ok) throw new Error("429");
@@ -168,8 +195,7 @@
             });
 
             const latest = dailyHistory[dailyHistory.length-1];
-            
-            // Streak
+
             let maxStreak = 0, currentStreak = 0;
             allMaxTemps.forEach(temp => {
                 if (Math.abs(temp - latest.temp) <= 2) currentStreak++;
@@ -177,13 +203,11 @@
             });
             document.getElementById('streak-val').innerText = `Streak: ${maxStreak} days`;
 
-            // Era Trend
             const annualList = Object.keys(yearlyData).map(y => yearlyData[y].sum / yearlyData[y].count);
             const eraDiff = (annualList.slice(-5).reduce((a,b)=>a+b,0)/5 - annualList.slice(0, 5).reduce((a,b)=>a+b,0)/5).toFixed(2);
             document.getElementById('era-trend').classList.remove('hidden');
             document.getElementById('era-trend').innerHTML = `Era Shift: <span class="${eraDiff > 0 ? 'text-red-500' : 'text-blue-500'}">${eraDiff > 0 ? '+' : ''}${eraDiff}°C</span>`;
 
-            // Stats
             const sorted = [...dailyHistory].sort((a,b) => b.temp - a.temp);
             document.getElementById('rec-hot-val').innerText = `${sorted[0].temp.toFixed(1)}°`;
             document.getElementById('rec-hot-year').innerText = sorted[0].year;
@@ -192,7 +216,7 @@
 
             document.getElementById('today-temp').innerText = `${latest.temp.toFixed(1)}°C`;
             document.getElementById('today-humid').innerText = `${Math.round(latest.humid)}%`;
-            
+
             const avgTempDay = dailyHistory.reduce((a,b)=>a+b.temp,0) / dailyHistory.length;
             document.getElementById('avg-temp').innerText = `${avgTempDay.toFixed(1)}°C`;
 
@@ -207,7 +231,6 @@
             document.getElementById('extreme-days').innerText = dailyHistory.filter(d=>d.temp>=30).length;
             document.getElementById('freezing-days').innerText = dailyHistory.filter(d=>d.temp<0).length;
 
-            // Grid
             const annualAverages = Object.keys(yearlyData).map(y => ({ year: y, avg: yearlyData[y].sum / (yearlyData[y].count || 1) })).filter(a => a.avg !== 0);
             const hotY = [...annualAverages].sort((a,b) => b.avg - a.avg)[0];
             const coldY = [...annualAverages].sort((a,b) => a.avg - b.avg)[0];
