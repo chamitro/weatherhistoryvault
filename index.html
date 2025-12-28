@@ -1,23 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-73036WSLVP"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-73036WSLVP');
-</script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-73036WSLVP"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-73036WSLVP');
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Weather History Vault - 50 Year Analysis</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-100 text-slate-900 min-h-screen font-sans">
+<body class="bg-slate-100 text-slate-900 min-h-screen font-sans relative">
+
+    <div class="fixed top-2 right-2 z-50">
+        <a href="https://open-meteo.com/" target="_blank" class="text-[8px] font-medium text-slate-400 hover:text-indigo-500 transition-colors uppercase tracking-tighter bg-white/50 px-2 py-1 rounded-full backdrop-blur-sm">
+            Data by Open-Meteo
+        </a>
+    </div>
 
     <div id="infoModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick="closeModal()">
         <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl transform transition-all scale-100" onclick="event.stopPropagation()">
@@ -117,6 +120,7 @@
     <script>
         let chartInstance = null;
         const today = new Date();
+        const currentYear = today.getFullYear();
         const monthDay = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
         function showInfo(type) {
@@ -125,11 +129,13 @@
             const body = document.getElementById('modalBody');
 
             if (type === 'era') {
+                const startYear = currentYear - 50;
+                const midYear = currentYear - 25;
                 title.innerText = "What is Era Shift?";
-                body.innerText = "This compares the annual average temperature of the first 25 years (1975-2000) against the most recent 25 years (2000-2025). This 10-year window provides a much more stable and accurate view of long-term climate warming or cooling in this city.";
+                body.innerText = `This compares the annual average temperature of the first 25 years (${startYear}—${midYear}) against the most recent 25 years (${midYear}—${currentYear}). This provides a stable view of long-term climate warming or cooling in this specific city.`;
             } else if (type === 'streak') {
                 title.innerText = "What is a Streak?";
-                body.innerText = "This scans the entire 50-year database to find the longest consecutive number of days where the temperature stayed within 2°C of today's high. It reveals the longest historical heatwaves or cold snaps of this intensity.";
+                body.innerText = "This scans the entire 50-year database to find the longest consecutive number of days where the temperature stayed within 2°C of today's high. It reveals the longest historical periods of weather 'stagnation' or heatwaves of this intensity.";
             }
 
             modal.classList.remove('hidden');
@@ -176,7 +182,7 @@
 
         async function fetchData(lat, lon) {
             const end = new Date().toISOString().split('T')[0];
-            const start = (new Date().getFullYear() - 50) + "-01-01";
+            const start = (currentYear - 50) + "-01-01";
             const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&daily=temperature_2m_max,temperature_2m_mean,relative_humidity_2m_mean&timezone=auto`;
             const res = await fetch(url);
             if (!res.ok) throw new Error("429");
@@ -212,11 +218,10 @@
             });
             document.getElementById('streak-val').innerText = `Streak: ${maxStreak} days`;
 
-            // UPDATED ERA TREND: 25 YEARS VS 25 YEARS
             const annualList = Object.keys(yearlyData).map(y => yearlyData[y].sum / yearlyData[y].count);
-            const first10Avg = annualList.slice(0, 25).reduce((a,b)=>a+b,0) / 25;
-            const last10Avg = annualList.slice(-25).reduce((a,b)=>a+b,0) / 25;
-            const eraDiff = (last10Avg - first10Avg).toFixed(2);
+            const first25Avg = annualList.slice(0, 25).reduce((a,b)=>a+b,0) / 25;
+            const last25Avg = annualList.slice(-25).reduce((a,b)=>a+b,0) / 25;
+            const eraDiff = (last25Avg - first25Avg).toFixed(2);
             
             document.getElementById('era-trend').classList.remove('hidden');
             document.getElementById('era-trend').innerHTML = `Era Shift: <span class="${eraDiff > 0 ? 'text-red-500' : 'text-blue-500'}">${eraDiff > 0 ? '+' : ''}${eraDiff}°C</span>`;
